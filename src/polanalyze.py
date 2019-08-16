@@ -351,8 +351,8 @@ def read_goal(filename):
 def main():
     xs, ys = read_goal("goal.txt")
 #    return
-    M = 500
-    N = 500
+    M = 15000
+    N = 16
     '''  
     filename = "M%dN%d/melt_M%d_N%d.data" %(M,N,M,N)
     graph, headers, sections = get_graph(filename, M, N)
@@ -360,12 +360,12 @@ def main():
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.plot_mean_square('b', 'Initial')
     '''
-    filename = "WALLZM%dN%d/data_quenched_M%d_N%d" %(M,N,M,N)
+    filename = "../lammpsinput/data_quenched_M%d_N%d" %(M,N)
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.write_sections()
-#    pol_melt.write_lammps_file("eq_M%d_N%d.data" %(M, N))
+    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_M%d_N%d.data" %(M, N))
 #    d = data("eq_M%d_N%d.data" %(M, N))
 
     pol_melt.plot_mean_square('r', 'Equilibrated')

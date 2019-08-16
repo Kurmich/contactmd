@@ -1,8 +1,8 @@
 
 
-name = "visualize_M500_N500_r5.out"
+name = "visualize_M1000_N256_r0_cang0.out"
 
-filename = "../" + name
+filename = "../visfiles/" + name
 epsilon = 0.0000000000001
 def RepresentsInt(s):
     try: 
@@ -19,7 +19,7 @@ def RepresentsFloat(s):
         return False
 
 
-newfilename = "filt_" + name
+newfilename = "../visfiles/filt_" + name
 newfile = open(newfilename, "w+")
 
 with open(filename, 'r') as f:

@@ -442,26 +442,26 @@ class SimulationStructure:
 
 def main():
     d = 2**(1/6)
-    Dx, Dy, Dz = 117, 117, 3  #195, 195, 3
+    Dx, Dy, Dz = 71, 71, 3  #195, 195, 3
     Dz_tip = (2**(1/2)) * d
     radius = 10
     units = 'lj'
     atom_style = 'bond'
-    cone_angle = 30
+    cone_angle = 45
 #    substrate = create_substrate('fcc', '001', d,  Dx, Dy, Dz)
-    #substrate_unit = StructureUnitParams('substrate', 'substrate', 'fcc', '001', d, 1, 1.0,  Dx, Dy, Dz)
+    substrate_unit = StructureUnitParams('substrate', 'substrate', 'fcc', '001', d, 1, 1.0, atom_style,  Dx, Dy, Dz)
     d /= 2
     spherical_tip_unit = StructureUnitParams('spherical tip', 'spherical tip', 'fcc', '001', d, 1, 1.0, atom_style,  Dx, Dy, Dz_tip)
     cone_tip_unit = StructureUnitParams('cone tip', 'cone tip', 'fcc', '001', d, 1, 1.0, atom_style,  Dx, Dy, Dz_tip)
     cone_tip_unit.set_cone_angle(cone_angle)
 #    lubricant = StructureUnitParams('lubricant', 'lubricant', 'fcc', '001', d, 3, 1.0,  Dx/2, Dy/2, Dz)
 #    lubricant.set_num_of_layers(1)
-    #substrate_unit.set_num_of_layers(1)
+    substrate_unit.set_num_of_layers(1)
     spherical_tip_unit.set_num_of_layers(1)
     spherical_tip_unit.set_radius(radius)
     cone_tip_unit.set_num_of_layers(1)
     cone_tip_unit.set_radius(radius)
-    sim_str = SimulationStructure(units, [cone_tip_unit]) # SimulationStructure(units, [substrate_unit, spherical_tip_unit, lubricant])
+    sim_str = SimulationStructure(units, [substrate_unit]) # SimulationStructure(units, [substrate_unit, spherical_tip_unit, lubricant])
 #    sim_str = SimulationStructure(units, [substrate_unit, spherical_tip_unit]) # SimulationStructure(units, [substrate_unit, spherical_tip_unit, lubricant])
 #    sim_str.bring_to_contact('lubricant','substrate')
  #   oligomer = sim_str.make_substrate_glassy()
@@ -475,8 +475,8 @@ def main():
     #visualize_system(list(sim_str.sim_structures.values()), oligomer, sim_str.bonds)
     sim_str.set_borders()
     sim_str.visualize()
-    
-    sim_str.create_lammps_input("tip_r%d_Dx%d_cang%d.dat" %(radius, Dx, cone_angle))
+    sim_str.create_lammps_input("../lammpsinput/flattip_Dx%d.dat" %(Dx))
+#    sim_str.create_lammps_input("../lammpsinput/tip_r%d_Dx%d_cang%d.dat" %(radius, Dx, cone_angle))
 #    tip_as_substrate = create_substrate('fcc', '001', d,  Dx, Dy, Dz_tip)
 #    tip = create_spherical_tip(tip_as_substrate, radius)
 #    bring_to_contact(substrate, tip, d)

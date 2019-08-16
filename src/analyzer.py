@@ -1,5 +1,6 @@
 from fcc import *
 import secrets
+from scipy import stats
 from scipy.spatial import ConvexHull
 forces = [500.0]
 poisson = 0.5
@@ -9,7 +10,7 @@ R = 1000.0
 sigma = 1.0 #2**(1/6)
 d = 2.0**(1.0/6.0) * sigma
 atom_N = [1, 2, 3, 4]
-
+epsilon = 0.000001
 
 #idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
 
@@ -62,7 +63,7 @@ def binary_search_low(atom_forces, min_r):
     return hi
 
 
-def get_interactions(filename, t_start, t_end):
+def get_interactions(filename, t_start, t_end, types, interacting = False):
     assert t_start <= t_end
     r_time = False
     r_atom_count = False
@@ -74,8 +75,6 @@ def get_interactions(filename, t_start, t_end):
     max_r = 0
     all_res = []
     res = dict()
-    cur_frame = None
-    frames = []
     with open(filename) as file:
         for line in file:
             #check what kind of data to expect in this line
@@ -85,7 +84,6 @@ def get_interactions(filename, t_start, t_end):
                 r_time = False
             elif r_atom_count:
                 count = int(line)
-                cur_frame = np.zeros([count, 8])
                 res = dict()
                 print("# of atoms: %d" %count)
                 r_atom_count = False
@@ -102,9 +100,8 @@ def get_interactions(filename, t_start, t_end):
                         continue
                     id, mol, type, x, y, z, fx, fy, fz, _  = line.split(' ')
                     id, mol, type, x, y, z, fx, fy, fz = int(id), int(mol), int(type), float(x), float(y), float(z), float(fx), float(fy), float(fz)
-                    cur_frame[id-1, 0], cur_frame[id-1, 1] = mol, type
-                    cur_frame[id-1, 2], cur_frame[id-1, 3], cur_frame[id-1, 4] = x, y, z
-                    cur_frame[id-1, 5], cur_frame[id-1, 6], cur_frame[id-1, 7] = fx, fy, fz
+                    if type not in types: continue
+                    if interacting and abs(fx) < epsilon and abs(fy) < epsilon and abs(fz) < epsilon: continue
                     #choose interacting atoms
                     radius = math.sqrt(x**2 + y**2)
                     if type not in res: res[type] = []
@@ -115,8 +112,6 @@ def get_interactions(filename, t_start, t_end):
 
             #set what kind of data to expect in next lines
             if 'ITEM: TIMESTEP' in line:
-                if cur_frame is not None:
-                    frames.append(cur_frame)
                 if len(res) != 0:
                     for type, atom_forces in res.items():
                         l = sorted(atom_forces)
@@ -141,7 +136,74 @@ def get_interactions(filename, t_start, t_end):
             elif 'ITEM: ATOMS' in line:
                 r_atoms = True
                 print("Atom coordinate lines are coming")
-    return all_res, frames
+    return all_res
+
+def get_frames(filename, t_start, t_end):
+    assert t_start <= t_end
+    r_time = False
+    r_atom_count = False
+    r_boundary = False
+    r_atoms = False
+    skip = False
+    d = 0
+    t = 0
+    max_r = 0
+    cur_frame = None
+    frames = []
+    with open(filename) as file:
+        for line in file:
+            #check what kind of data to expect in this line
+            if r_time:
+                time = int(line)
+                print("Time step: %d" %time)
+                r_time = False
+            elif r_atom_count:
+                count = int(line)
+                cur_frame = np.zeros([count, 8])
+                print("# of atoms: %d" %count)
+                r_atom_count = False
+            elif r_boundary:
+                d -= 1
+                r_boundary = False if d == 0 else True
+            elif r_atoms:
+                if 'ITEM: TIMESTEP' in line:
+                    r_atoms = False
+                else:
+                    #print("reading atoms")
+                   # print(len(line.split(' ')))
+                    if skip:
+                        continue
+                    id, mol, type, x, y, z, fx, fy, fz, _  = line.split(' ')
+                    id, mol, type, x, y, z, fx, fy, fz = int(id), int(mol), int(type), float(x), float(y), float(z), float(fx), float(fy), float(fz)
+                    cur_frame[id-1, 0], cur_frame[id-1, 1] = mol, type
+                    cur_frame[id-1, 2], cur_frame[id-1, 3], cur_frame[id-1, 4] = x, y, z
+                    cur_frame[id-1, 5], cur_frame[id-1, 6], cur_frame[id-1, 7] = fx, fy, fz
+                    
+
+            #set what kind of data to expect in next lines
+            if 'ITEM: TIMESTEP' in line:
+                if cur_frame is not None:
+                    frames.append(cur_frame)
+                r_time = True
+                t += 1
+                if t > t_end:
+                    break
+                if t < t_start:
+                    skip = True
+                else:
+                    skip = False
+                print("Next is timestep")
+            elif 'ITEM: NUMBER OF ATOMS' in line:
+                r_atom_count = True
+                print("Next is number of atoms")
+            elif 'ITEM: BOX BOUNDS pp pp mm' in line:
+                r_boundary = True
+                d = 3
+                print("Next 3 lines are bondaries")
+            elif 'ITEM: ATOMS' in line:
+                r_atoms = True
+                print("Atom coordinate lines are coming")
+    return  frames
 
 
 def get_avg_pressure(atom_forces, r):
@@ -268,9 +330,9 @@ def print_total_load(frame, type):
     print(np.sum(frame[:, 7]))
 
 
+
 def interacting_particles(atom_forces):
     interacting = []
-    epsilon = 0.000001
     for af in atom_forces:
         if abs(af.fx) > epsilon or abs(af.fy) > epsilon or abs(af.fz) > epsilon:
             interacting.append(af)
@@ -373,28 +435,84 @@ def plot_stresszz_d(all_res, type):
     times = []
     ds  = []
     strs_z = []
-    dt = 0.005 * 500000
+    fzs = []
+    num_intrs = []
+    dt = 0.005 * 50000
     v = 0.0001
-    d_start = 10 * dt * v
+    d_start = 0
+    t0 = 0
+    d0 = 0
+    first_contact = True
+    ts = 0
+    avg_strs, cnt = 0, 0
     for t in range(len(all_res)):
         print("New timestep: %d" %t)
         res = all_res[t]
         interacting_af, points = interacting_particles(res[type])
-        #_, _, all_fz = get_total_forces(res[type])
-        fx, fy, fz = get_total_forces(interacting_af)
-        hull = ConvexHull(points)
-        #plt.plot(points[hull.vertices,0], points[hull.vertices,1], 'r--', lw=2)
-        #plt.show()
-        print("scipy area: %g" %hull.area)
-        area = shoelace_area(points[hull.vertices,0], points[hull.vertices,1])
-        #hull, max_r, area = jarvis(interacting_af, visualize=True)
-#        area = math.pi * max_r**2
+        count = len(interacting_af)
+        if count == 0:
+            continue
+        elif count < 3:
+            #continue
+            if first_contact:
+                t0 = t-1
+                print("First contact happens at t0 : %d" %t0)
+                first_contact = False
+           # continue
+            fx, fy, fz = get_total_forces(interacting_af)
+            area = count * math.pi * (d/2)**2
+        else:
+            #if first_contact:
+            #    t0 = t-1
+            #    first_contact = False
+            #_, _, all_fz = get_total_forces(res[type])
+            fx, fy, fz = get_total_forces(interacting_af)
+            hull = ConvexHull(points)
+            #plt.plot(points[hull.vertices,0], points[hull.vertices,1], 'r--', lw=2)
+            #plt.show()
+            print("scipy area: %g" %hull.area)
+            area = shoelace_area(points[hull.vertices,0], points[hull.vertices,1])
+            #hull, max_r, area = jarvis(interacting_af, visualize=True)
+            #area = math.pi * max_r**2
+        del_z = (t - t0) * v * dt
+        if del_z < d0:
+            continue
+        else:
+            del_z -= d0
+        str_z = fz / area
+        #if str_z > 3:
+        #    continue
         areas.append(area)
+        fzs.append(fz)
+        num_intrs.append(count)
         times.append(t)
-        ds.append(d_start + t * v * dt)
-        strs_z.append(fz/area)
-        print(fz, area)
-    plt.plot(ds, strs_z)
+        ds.append(del_z)
+        strs_z.append(str_z)
+        if t > ts:
+            avg_strs += str_z
+            cnt += 1
+        print("Displacement d: %g Num of particles: %d Total Fz: %g Area: %g StressZ: %g" %(del_z,count,fz, area, str_z))
+    fig, ax = plt.subplots(4, 1)
+    ax[0].plot(ds, num_intrs, 'g')
+    ax[0].set_ylabel("N", rotation = 0)
+    ax[1].plot(ds, areas, 'r')
+    ax[1].set_ylabel("A", rotation = 0)
+    ax[2].plot(ds, fzs, 'k')
+    ax[2].set_ylabel("$F_z$", rotation = 0)
+    ax[3].plot(ds, strs_z, 'b')
+    ax[3].set_ylabel("$\sigma_{zz}$", rotation = 0)
+    ax[3].set_xlabel("$d$")
+    fig.suptitle("Shift d = %g" %d0)
+    plt.show()
+    plt.plot(ds, fzs, label = "F_z vs d")
+    ds2 = [d**2 for d in ds]
+    plt.plot(ds2, fzs)
+    slope, intercept, r_value, p_value, std_err = stats.linregress(ds2,fzs)
+    print("Avg stress: %g" %(avg_strs/cnt))
+    print("slope: %g intercept: %g r_val: %g p_val: %g std_err: %g" %(slope, intercept, r_value, p_value, std_err))
+    plt.ylabel('$F_z$')
+    plt.xlabel('$d^2$')
+    plt.legend()
     plt.show()
 
 def main():
@@ -402,14 +520,19 @@ def main():
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
-    tip_type = 3
-    glass = 2
-    t_start = 17
-    t_end = 70
+    M, N = 1000, 256
+    r = 0
+    cang = 0
+    tip_type = 2
+    glass = 1
+    t_start = 1
+    t_end = 6
+    types = [tip_type]
     #filename = '../visualize_f500_r1000.out'
-    filename = '../visualize_M500_N500_r5.out'
-    all_res, frames = get_interactions(filename, t_start, t_end)
-    #plot_layer_density(glass, frames, 20)
+    filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
+    all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
+#    plot_layer_density(glass, frames, t_start + 1)
+ #   plot_layer_density(glass, frames, t_start + 20)
     #print_total_load(frames[0], substrate_type)
     #print_total_load(frames[0], tip_type)
     #data = get_displacements(2, frames, 1, 2)
@@ -430,6 +553,7 @@ def main():
     plt.plot(square[hull.vertices,0], square[hull.vertices,1], 'r--', lw=2)
     plt.show()
     print(hull.area)'''
+    print("M: %d N: %d r: %d cang: %d t_start: %d t_end: %d" %(M, N, r, cang, t_start, t_end))
 
 if __name__=="__main__":
     main()

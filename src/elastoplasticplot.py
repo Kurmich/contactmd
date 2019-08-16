@@ -11,7 +11,7 @@ a_boundary = r * math.sin(theta_rad)
 
 print(a_boundary, d_boundary)
 
-filename = "../push_displ_r%d.dat" %r
+filename = "../visfiles/conef_M15000_N16_r%d_cang20.dat" %r
 z0 = 0 
 z = []
 fzs = []
