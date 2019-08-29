@@ -430,6 +430,13 @@ def get_total_forces(atomic_forces):
     return fx, fy, fz
 
 
+def get_contact_depth(interacting_af):
+    zlo, zhi = 100000000000, -100000000000
+    for af in interacting_af:
+        zlo = min(zlo, af.z)
+        zhi = max(zhi, af.z)
+    return zhi - zlo
+
 def plot_stresszz_d(all_res, type):
     areas = []
     times = []
@@ -445,6 +452,8 @@ def plot_stresszz_d(all_res, type):
     first_contact = True
     ts = 0
     avg_strs, cnt = 0, 0
+    fz_prev = 0
+    E_modulus = 0
     for t in range(len(all_res)):
         print("New timestep: %d" %t)
         res = all_res[t]
@@ -461,6 +470,7 @@ def plot_stresszz_d(all_res, type):
            # continue
             fx, fy, fz = get_total_forces(interacting_af)
             area = count * math.pi * (d/2)**2
+            hc = get_contact_depth(interacting_af)
         else:
             #if first_contact:
             #    t0 = t-1
@@ -472,8 +482,19 @@ def plot_stresszz_d(all_res, type):
             #plt.show()
             print("scipy area: %g" %hull.area)
             area = shoelace_area(points[hull.vertices,0], points[hull.vertices,1])
+            hc = get_contact_depth(interacting_af)
             #hull, max_r, area = jarvis(interacting_af, visualize=True)
             #area = math.pi * max_r**2
+        
+
+        if fz_prev == 0: fz_prev = fz
+        if fz_prev != fz:
+            del_fz    = fz - fz_prev
+            del_h     = v * dt
+            stiffness = del_fz/del_h
+            fz_prev   = fz
+            E_modulus = (stiffness * (math.pi**(1/2))) / (2 * area**(1/2))
+        
         del_z = (t - t0) * v * dt
         if del_z < d0:
             continue
@@ -491,8 +512,14 @@ def plot_stresszz_d(all_res, type):
         if t > ts:
             avg_strs += str_z
             cnt += 1
-        print("Displacement d: %g Num of particles: %d Total Fz: %g Area: %g StressZ: %g" %(del_z,count,fz, area, str_z))
+        print("Displacement d: %g Contact Depth: %g Num of particles: %d Total Fz: %g Area: %g StressZ: %g E: %g" %(del_z,hc,count,fz, area, str_z, E_modulus))
+    fz_polcoeffs = np.polyfit(ds, fzs, 2)
+    az_polcoeffs = np.polyfit(ds, areas, 2)
+    print(fz_polcoeffs)
+    print(az_polcoeffs)
+    polfz = np.poly1d(fz_polcoeffs)
     fig, ax = plt.subplots(4, 1)
+    E_moduli = [2 * fzs[i] * math.tan(math.radians(45))/ areas[i] for i in range(len(ds)) ]
     ax[0].plot(ds, num_intrs, 'g')
     ax[0].set_ylabel("N", rotation = 0)
     ax[1].plot(ds, areas, 'r')
@@ -512,8 +539,12 @@ def plot_stresszz_d(all_res, type):
     print("slope: %g intercept: %g r_val: %g p_val: %g std_err: %g" %(slope, intercept, r_value, p_value, std_err))
     plt.ylabel('$F_z$')
     plt.xlabel('$d^2$')
+    plt.plot(ds, polfz(ds))
     plt.legend()
     plt.show()
+    plt.plot(ds, strs_z)
+    plt.show()
+    print(E_moduli)
 
 def main():
     #plot_nforce_vs_cont_area()
@@ -526,7 +557,7 @@ def main():
     tip_type = 2
     glass = 1
     t_start = 1
-    t_end = 6
+    t_end = 220
     types = [tip_type]
     #filename = '../visualize_f500_r1000.out'
     filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)

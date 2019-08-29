@@ -351,8 +351,8 @@ def read_goal(filename):
 def main():
     xs, ys = read_goal("goal.txt")
 #    return
-    M = 15000
-    N = 16
+    M = 1000
+    N = 256
     '''  
     filename = "M%dN%d/melt_M%d_N%d.data" %(M,N,M,N)
     graph, headers, sections = get_graph(filename, M, N)

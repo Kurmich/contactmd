@@ -449,14 +449,16 @@ skeywords = [["Masses", "atom types"],
 def main():
     M = 1000
     N = 256
-    r = 0
-    cone_ang = 0
+    r = 10
+    cone_ang = 45
     Dx = 71
-    d = data("../lammpsinput/data_quenched_M%d_N%d" %(M, N))
-    d2 = data("../lammpsinput/flattip_Dx%d.dat" %(Dx))
-#    d2 = data("../lammpsinput/tip_r%d_Dx%d_cang%d.dat" %(r, Dx, cone_ang))
-    d.append(d2, 1)
+    sep_z = 2**(1/6)
+    d = data("../lammpsinput/clean_quenched_M%d_N%d.data" %(M, N))
+#    d2 = data("../lammpsinput/flattip_Dx%d.dat" %(Dx))
+    d2 = data("../lammpsinput/tip_r%d_Dx%d_cang%d.dat" %(r, Dx, cone_ang))
+    d.append(d2, sep_z)
     d.write("../lammpsinput/wtip_data_quenched_M%d_N%d_sphR%d_cang%d" %(M, N, r, cone_ang))
+    print("sepz: %g" %sep_z)
 
 
 if __name__ == "__main__":
