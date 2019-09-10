@@ -449,10 +449,10 @@ skeywords = [["Masses", "atom types"],
 def main():
     M = 1000
     N = 256
-    r = 10
-    cone_ang = 45
-    Dx = 71
-    sep_z = 2**(1/6)
+    r = 0
+    cone_ang = 0
+    Dx = 72
+    sep_z = 2**(1/6) + 0.5
     d = data("../lammpsinput/clean_quenched_M%d_N%d.data" %(M, N))
 #    d2 = data("../lammpsinput/flattip_Dx%d.dat" %(Dx))
     d2 = data("../lammpsinput/tip_r%d_Dx%d_cang%d.dat" %(r, Dx, cone_ang))

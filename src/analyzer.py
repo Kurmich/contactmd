@@ -138,7 +138,7 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                 print("Atom coordinate lines are coming")
     return all_res
 
-def get_frames(filename, t_start, t_end):
+def get_frames(filename, t_start, t_end, types = None):
     assert t_start <= t_end
     r_time = False
     r_atom_count = False
@@ -149,7 +149,11 @@ def get_frames(filename, t_start, t_end):
     t = 0
     max_r = 0
     cur_frame = None
+    real_count = 0
     frames = []
+    #type_count = {}
+    #for type in types:
+     #   type_count[type] = 0
     with open(filename) as file:
         for line in file:
             #check what kind of data to expect in this line
@@ -159,7 +163,8 @@ def get_frames(filename, t_start, t_end):
                 r_time = False
             elif r_atom_count:
                 count = int(line)
-                cur_frame = np.zeros([count, 8])
+                if not skip:
+                    cur_frame = np.zeros([count, 8])
                 print("# of atoms: %d" %count)
                 r_atom_count = False
             elif r_boundary:
@@ -173,8 +178,12 @@ def get_frames(filename, t_start, t_end):
                    # print(len(line.split(' ')))
                     if skip:
                         continue
+                        
                     id, mol, type, x, y, z, fx, fy, fz, _  = line.split(' ')
                     id, mol, type, x, y, z, fx, fy, fz = int(id), int(mol), int(type), float(x), float(y), float(z), float(fx), float(fy), float(fz)
+                    #if types is not None and type in types and time == t_start:
+                    #    typecount[type] += 1
+                    #if type not in types: continue
                     cur_frame[id-1, 0], cur_frame[id-1, 1] = mol, type
                     cur_frame[id-1, 2], cur_frame[id-1, 3], cur_frame[id-1, 4] = x, y, z
                     cur_frame[id-1, 5], cur_frame[id-1, 6], cur_frame[id-1, 7] = fx, fy, fz
@@ -182,7 +191,7 @@ def get_frames(filename, t_start, t_end):
 
             #set what kind of data to expect in next lines
             if 'ITEM: TIMESTEP' in line:
-                if cur_frame is not None:
+                if cur_frame is not None and not skip:
                     frames.append(cur_frame)
                 r_time = True
                 t += 1
@@ -205,6 +214,30 @@ def get_frames(filename, t_start, t_end):
                 print("Atom coordinate lines are coming")
     return  frames
 
+
+def broken_bonds(frames, type, chain_count, chain_len, max_bond_length):
+    broken_bond_count = []
+    bond_count = chain_len - 1
+    for frame in frames:
+        frame = frame[frame[:, 1] == type, :]
+        print(frame)
+        #print(np.diff(frame[:, 2:5], axis = 0))
+        print(np.sum(np.square(np.diff(frame[:, 2:5], axis = 0)), axis = 1))
+        drs = np.sqrt(np.sum(np.square(np.diff(frame[:, 2:5], axis = 0)), axis = 1))
+        print(drs)
+        count = 0
+        for i in range(chain_count):
+            print(i)
+            s = i * chain_len
+            e = s + chain_len
+            #print(s, e)
+            drs = np.sqrt(np.sum(np.square(np.diff(frame[s:e, 2:5], axis = 0)), axis = 1))
+            c = drs[drs[s:e] > max_bond_length]
+            count += len(drs[drs[s:e] > max_bond_length])
+        broken_bond_count.append(count)
+    ts = [i+1 for i in range(len(broken_bond_count))]
+    plt.plot(ts, broken_bond_count)
+    plt.show()
 
 def get_avg_pressure(atom_forces, r):
     count = len(atom_forces)
@@ -448,7 +481,7 @@ def plot_stresszz_d(all_res, type):
     v = 0.0001
     d_start = 0
     t0 = 0
-    d0 = 0
+    d0 = 1.5
     first_contact = True
     ts = 0
     avg_strs, cnt = 0, 0
@@ -552,16 +585,19 @@ def main():
     #tip_type = 2
     #oligomer_type = 3
     M, N = 1000, 256
-    r = 0
-    cang = 0
+    r = 10
+    cang = 45
     tip_type = 2
     glass = 1
     t_start = 1
-    t_end = 220
+    t_end = 5
     types = [tip_type]
-    #filename = '../visualize_f500_r1000.out'
-    filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
-    all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
+    filename = '../visfiles/viscomp_M%d_N%d.out' %(M, N)
+    #filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d_npt.out' %(M, N, r, cang)
+    #all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
+    frames = get_frames(filename, t_start, t_end)
+    broken_bonds(frames, glass, M, N, 1.5)
+    return
 #    plot_layer_density(glass, frames, t_start + 1)
  #   plot_layer_density(glass, frames, t_start + 20)
     #print_total_load(frames[0], substrate_type)

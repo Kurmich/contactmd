@@ -349,7 +349,7 @@ def read_goal(filename):
 #def get_edge_avg(atom_forces):
 
 def main():
-    xs, ys = read_goal("goal.txt")
+    #xs, ys = read_goal("goal.txt")
 #    return
     M = 1000
     N = 256
@@ -365,7 +365,7 @@ def main():
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.write_sections()
-    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_M%d_N%d.data" %(M, N))
+#    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_M%d_N%d.data" %(M, N))
 #    d = data("eq_M%d_N%d.data" %(M, N))
 
     pol_melt.plot_mean_square('r', 'Equilibrated')
