@@ -30,7 +30,7 @@ with open(filename, 'r') as file:
         displ.append(lambdaz)
         fz_top = float(arr[10])
         fz_bot = float(arr[13])
-        fzs.append(fz_top/ (Lx_cur * Ly_cur))
+        fzs.append( fz_top/ (Lx_cur * Ly_cur))
 
 plt.plot(displ, fzs)
 plt.show()

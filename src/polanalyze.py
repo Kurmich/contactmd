@@ -101,6 +101,7 @@ class PolymerMelt:
                     next_mon = polymer.monomers[mi+1]
                     bond_line = "%d %d %d %d\n" %(bond_id, bond_type, mon.mon_id, next_mon.mon_id)
                     bond_lines.append(bond_line)
+                    bond_id += 1
         self.sections["Atoms"]      = atom_lines
         self.sections["Velocities"] = vel_lines
         self.sections["Bonds"]      = bond_lines
@@ -365,7 +366,7 @@ def main():
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.write_sections()
-#    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_M%d_N%d.data" %(M, N))
+    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_M%d_N%d.data" %(M, N))
 #    d = data("eq_M%d_N%d.data" %(M, N))
 
     pol_melt.plot_mean_square('r', 'Equilibrated')
