@@ -350,7 +350,7 @@ def read_goal(filename):
 #def get_edge_avg(atom_forces):
 
 def main():
-    #xs, ys = read_goal("goal.txt")
+    xs, ys = read_goal("goal.txt")
 #    return
     M = 1000
     N = 256
