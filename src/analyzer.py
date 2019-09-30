@@ -239,6 +239,7 @@ def broken_bonds(frames, type, chain_count, chain_len, max_bond_length):
     plt.plot(ts, broken_bond_count)
     plt.show()
 
+
 def get_avg_pressure(atom_forces, r):
     count = len(atom_forces)
     normal_pressures = np.zeros(count)
@@ -477,11 +478,11 @@ def plot_stresszz_d(all_res, type):
     strs_z = []
     fzs = []
     num_intrs = []
-    dt = 0.005 * 50000
+    dt = 0.01 * 500000
     v = 0.0001
     d_start = 0
     t0 = 0
-    d0 = 1.5
+    d0 = 0
     first_contact = True
     ts = 0
     avg_strs, cnt = 0, 0
@@ -542,7 +543,7 @@ def plot_stresszz_d(all_res, type):
         times.append(t)
         ds.append(del_z)
         strs_z.append(str_z)
-        if t > ts:
+        if del_z > 5 and del_z < 10:
             avg_strs += str_z
             cnt += 1
         print("Displacement d: %g Contact Depth: %g Num of particles: %d Total Fz: %g Area: %g StressZ: %g E: %g" %(del_z,hc,count,fz, area, str_z, E_modulus))
@@ -584,20 +585,23 @@ def main():
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
-    M, N = 1000, 256
+    M, N = 2000, 500
     r = 10
     cang = 45
     tip_type = 2
     glass = 1
     t_start = 1
-    t_end = 5
+    t_end = 60
     types = [tip_type]
+    '''
+    bond testing
     filename = '../visfiles/viscomp_M%d_N%d.out' %(M, N)
-    #filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d_npt.out' %(M, N, r, cang)
-    #all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
     frames = get_frames(filename, t_start, t_end)
     broken_bonds(frames, glass, M, N, 1.5)
-    return
+    return'''
+    filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d_npt.out' %(M, N, r, cang)
+    all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
+    
 #    plot_layer_density(glass, frames, t_start + 1)
  #   plot_layer_density(glass, frames, t_start + 20)
     #print_total_load(frames[0], substrate_type)

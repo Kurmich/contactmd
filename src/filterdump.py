@@ -1,6 +1,6 @@
 
-#name = "visualize_M1000_N256_r10_cang45_npt.out"
-name = "viscomp_M1000_N256.out"
+name = "visualize_M2000_N500_r10_cang45_npt.out"
+#name = "viscomp_M2000_N500.out"
 
 filename = "../visfiles/" + name
 epsilon = 0.0000000000001
