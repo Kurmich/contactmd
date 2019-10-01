@@ -138,6 +138,85 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                 print("Atom coordinate lines are coming")
     return all_res
 
+
+
+def append_bondlens(filename, types, chain_count, chain_len):
+    N_atoms = chain_len * chain_count
+    r_time = False
+    r_atom_count = False
+    r_boundary = False
+    r_atoms = False
+    skip = False
+    d = 0
+    t = 0
+    max_r = 0
+    all_res = []
+    res = dict()
+    with open(filename) as file:
+        for line in file:
+            #check what kind of data to expect in this line
+            if r_time:
+                time = int(line)
+                print("Time step: %d" %time)
+                r_time = False
+            elif r_atom_count:
+                count = int(line)
+                res = dict()
+                print("# of atoms: %d" %count)
+                r_atom_count = False
+            elif r_boundary:
+                d -= 1
+                r_boundary = False if d == 0 else True
+            elif r_atoms:
+                if 'ITEM: TIMESTEP' in line:
+                    r_atoms = False
+                else:
+                    #print("reading atoms")
+                   # print(len(line.split(' ')))
+                    if skip:
+                        continue
+                    id, mol, type, x, y, z, fx, fy, fz, _  = line.split(' ')
+                    id, mol, type, x, y, z, fx, fy, fz = int(id), int(mol), int(type), float(x), float(y), float(z), float(fx), float(fy), float(fz)
+                    if type not in types: continue
+                    if interacting and abs(fx) < epsilon and abs(fy) < epsilon and abs(fz) < epsilon: continue
+                    #choose interacting atoms
+                    radius = math.sqrt(x**2 + y**2)
+                    if type not in res: res[type] = []
+                    res[type].append(AtomicForces(type, x, y, z, fx, fy, fz))
+                    max_r = max(max_r, radius)
+                    
+                    
+
+            #set what kind of data to expect in next lines
+            if 'ITEM: TIMESTEP' in line:
+                if len(res) != 0:
+                    for type, atom_forces in res.items():
+                        l = sorted(atom_forces)
+                        res[type] = l
+                    all_res.append(res)
+                r_time = True
+                t += 1
+                if t > t_end:
+                    break
+                if t < t_start:
+                    skip = True
+                else:
+                    skip = False
+                print("Next is timestep")
+            elif 'ITEM: NUMBER OF ATOMS' in line:
+                r_atom_count = True
+                print("Next is number of atoms")
+            elif 'ITEM: BOX BOUNDS pp pp mm' in line:
+                r_boundary = True
+                d = 3
+                print("Next 3 lines are bondaries")
+            elif 'ITEM: ATOMS' in line:
+                r_atoms = True
+                print("Atom coordinate lines are coming")
+    return all_res
+
+
+
 def get_frames(filename, t_start, t_end, types = None):
     assert t_start <= t_end
     r_time = False
@@ -238,6 +317,7 @@ def broken_bonds(frames, type, chain_count, chain_len, max_bond_length):
     ts = [i+1 for i in range(len(broken_bond_count))]
     plt.plot(ts, broken_bond_count)
     plt.show()
+
 
 
 def get_avg_pressure(atom_forces, r):
