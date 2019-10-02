@@ -140,10 +140,21 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
 
 
 
+def get_displ_pbr(x_next, x_prev, L):
+        #get displacement vector pointing form x_prev to x_next for periodic boundary condition
+        #periodicity is L
+        sign = np.sign(x_next - x_prev)
+        dx = abs(x_next - x_prev)
+        if dx > L/2:
+            dx = -(L - dx)
+        return sign * dx
+
 def append_bondlens(filename, types, chain_count, chain_len):
     N_atoms = chain_len * chain_count
     newfilename =  filename
+    Lx, Ly, Lz = 0 , 0 , 0
     new_file = open("wblen.txt", "w+")
+    epsilon = 0.0000000000001
     r_time = False
     r_atom_count = False
     r_boundary = False
@@ -157,17 +168,37 @@ def append_bondlens(filename, types, chain_count, chain_len):
     with open(filename) as file:
         for line in file:
             #check what kind of data to expect in this line
+            if not r_atom_count and not r_atoms:
+                if 'ITEM: ATOMS' in line:
+                    words = line.split()
+                    newline = ""
+                    for word in words:
+                        newline += (word + " ")
+                    newline += "bondlen\n"
+                    line = newline
+                new_file.write(line)
+            
+                
             if r_time:
                 time = int(line)
                 print("Time step: %d" %time)
                 r_time = False
             elif r_atom_count:
                 count = int(line)
-                res = dict()
                 cur_frame = np.zeros([N_atoms, 10])
+                new_file.write(str(N_atoms) + "\n")
                 print("# of atoms: %d" %count)
                 r_atom_count = False
             elif r_boundary:
+                words = line.split()
+                L = float(words[1]) - float(words[0])
+                if d == 3: 
+                    Lx = L
+                elif d == 2:
+                    Ly = L
+                elif d == 1:
+                    Lz = L
+                print(Lx, Ly, Lz)
                 d -= 1
                 r_boundary = False if d == 0 else True
             elif r_atoms:
@@ -178,7 +209,9 @@ def append_bondlens(filename, types, chain_count, chain_len):
                    # print(len(line.split(' ')))
                     id, mol, type, x, y, z, fx, fy, fz, _  = line.split(' ')
                     id, mol, type, x, y, z, fx, fy, fz = int(id), int(mol), int(type), float(x), float(y), float(z), float(fx), float(fy), float(fz)
-                    
+                    if fx < epsilon: fx = 0
+                    if fy < epsilon: fy = 0
+                    if fz < epsilon: fz = 0
                     if type not in types: continue
                     cur_frame[id-1, 0], cur_frame[id-1, 1], cur_frame[id-1, 2] = id, mol, type
                     cur_frame[id-1, 3], cur_frame[id-1, 4], cur_frame[id-1, 5] = x, y, z
@@ -189,13 +222,22 @@ def append_bondlens(filename, types, chain_count, chain_len):
             #set what kind of data to expect in next lines
             if 'ITEM: TIMESTEP' in line:
                 if cur_frame is not None:
+                    #mod_atoms = ""
                     for i in range(chain_count):
                         s = i * chain_len
                         e = s + chain_len
                         chain_frame = cur_frame[s:e, :]
-                        drs = np.sqrt(np.sum(np.square(np.diff(chain_frame[:, 3:6], axis = 0)), axis = 1))
-                        chain_frame[0:chain_len-1, 9] = drs
-                        chainstring = ""
+                        #drs = np.sqrt(np.sum(np.square(np.diff(chain_frame[:, 3:6], axis = 0)), axis = 1))
+                        #chain_frame[0:chain_len-1, 9] = drs
+                        for j in range(chain_len - 1):
+                            dx = get_displ_pbr(chain_frame[j, 3], chain_frame[j+1, 3], Lx)
+                            dy = get_displ_pbr(chain_frame[j, 4], chain_frame[j+1, 4], Ly)
+                            #dz assumes that there shouldn't be problems with prc since it isn't periodic in z direction + tip is added
+                            dz = get_displ_pbr(chain_frame[j, 5], chain_frame[j+1, 5], Lz) 
+                            dr = math.sqrt(dx*dx + dy*dy + dz*dz)
+                            chain_frame[j, 9] = dr
+                        chain_frame[chain_len - 1, 9] = chain_frame[chain_len - 2, 9]
+                        #chainstring = ""
                         for j in range(chain_len):
                             cur_l = ""
                             for k in range(3):
@@ -204,21 +246,29 @@ def append_bondlens(filename, types, chain_count, chain_len):
                             for k in range(3, 10):
                                 cur_l += str(chain_frame[j, k])
                                 cur_l += " "
-                            chainstring += cur_l + "\n"
-                        print(chainstring)
+                            new_file.write(cur_l + "\n")
+                    new_file.write(line)
+                            #chainstring += cur_l + "\n"
+                        #mod_atoms += chainstring
+                    #print(mod_atoms)
                 r_time = True
                 t += 1
+                '''if t == 3:
+                    new_file.flush()
+                    return
+                '''
             elif 'ITEM: NUMBER OF ATOMS' in line:
                 r_atom_count = True
                 print("Next is number of atoms")
-            elif 'ITEM: BOX BOUNDS pp pp mm' in line:
+            elif 'ITEM: BOX BOUNDS' in line:
                 r_boundary = True
                 d = 3
                 print("Next 3 lines are bondaries")
             elif 'ITEM: ATOMS' in line:
                 r_atoms = True
                 print("Atom coordinate lines are coming")
-        new_f.close()
+        new_file.flush()
+        new_file.close()
 
 
 
@@ -670,9 +720,9 @@ def main():
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
-    M, N = 1000, 256
+    M, N = 2000, 500
     r = 10
-    cang = 45
+    cang = 10
     tip_type = 2
     glass = 1
     t_start = 1
