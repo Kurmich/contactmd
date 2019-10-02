@@ -142,6 +142,8 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
 
 def append_bondlens(filename, types, chain_count, chain_len):
     N_atoms = chain_len * chain_count
+    newfilename =  filename
+    new_file = open("wblen.txt", "w+")
     r_time = False
     r_atom_count = False
     r_boundary = False
@@ -151,7 +153,7 @@ def append_bondlens(filename, types, chain_count, chain_len):
     t = 0
     max_r = 0
     all_res = []
-    res = dict()
+    cur_frame = None
     with open(filename) as file:
         for line in file:
             #check what kind of data to expect in this line
@@ -162,6 +164,7 @@ def append_bondlens(filename, types, chain_count, chain_len):
             elif r_atom_count:
                 count = int(line)
                 res = dict()
+                cur_frame = np.zeros([N_atoms, 10])
                 print("# of atoms: %d" %count)
                 r_atom_count = False
             elif r_boundary:
@@ -173,36 +176,38 @@ def append_bondlens(filename, types, chain_count, chain_len):
                 else:
                     #print("reading atoms")
                    # print(len(line.split(' ')))
-                    if skip:
-                        continue
                     id, mol, type, x, y, z, fx, fy, fz, _  = line.split(' ')
                     id, mol, type, x, y, z, fx, fy, fz = int(id), int(mol), int(type), float(x), float(y), float(z), float(fx), float(fy), float(fz)
+                    
                     if type not in types: continue
-                    if interacting and abs(fx) < epsilon and abs(fy) < epsilon and abs(fz) < epsilon: continue
-                    #choose interacting atoms
-                    radius = math.sqrt(x**2 + y**2)
-                    if type not in res: res[type] = []
-                    res[type].append(AtomicForces(type, x, y, z, fx, fy, fz))
-                    max_r = max(max_r, radius)
+                    cur_frame[id-1, 0], cur_frame[id-1, 1], cur_frame[id-1, 2] = id, mol, type
+                    cur_frame[id-1, 3], cur_frame[id-1, 4], cur_frame[id-1, 5] = x, y, z
+                    cur_frame[id-1, 6], cur_frame[id-1, 7], cur_frame[id-1, 8] = fx, fy, fz
                     
                     
 
             #set what kind of data to expect in next lines
             if 'ITEM: TIMESTEP' in line:
-                if len(res) != 0:
-                    for type, atom_forces in res.items():
-                        l = sorted(atom_forces)
-                        res[type] = l
-                    all_res.append(res)
+                if cur_frame is not None:
+                    for i in range(chain_count):
+                        s = i * chain_len
+                        e = s + chain_len
+                        chain_frame = cur_frame[s:e, :]
+                        drs = np.sqrt(np.sum(np.square(np.diff(chain_frame[:, 3:6], axis = 0)), axis = 1))
+                        chain_frame[0:chain_len-1, 9] = drs
+                        chainstring = ""
+                        for j in range(chain_len):
+                            cur_l = ""
+                            for k in range(3):
+                                cur_l += str(int(chain_frame[j, k]))
+                                cur_l += " "
+                            for k in range(3, 10):
+                                cur_l += str(chain_frame[j, k])
+                                cur_l += " "
+                            chainstring += cur_l + "\n"
+                        print(chainstring)
                 r_time = True
                 t += 1
-                if t > t_end:
-                    break
-                if t < t_start:
-                    skip = True
-                else:
-                    skip = False
-                print("Next is timestep")
             elif 'ITEM: NUMBER OF ATOMS' in line:
                 r_atom_count = True
                 print("Next is number of atoms")
@@ -213,7 +218,7 @@ def append_bondlens(filename, types, chain_count, chain_len):
             elif 'ITEM: ATOMS' in line:
                 r_atoms = True
                 print("Atom coordinate lines are coming")
-    return all_res
+        new_f.close()
 
 
 
@@ -665,14 +670,14 @@ def main():
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
-    M, N = 2000, 500
+    M, N = 1000, 256
     r = 10
     cang = 45
     tip_type = 2
     glass = 1
     t_start = 1
     t_end = 60
-    types = [tip_type]
+    types = [glass]
     '''
     bond testing
     filename = '../visfiles/viscomp_M%d_N%d.out' %(M, N)
@@ -680,6 +685,8 @@ def main():
     broken_bonds(frames, glass, M, N, 1.5)
     return'''
     filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d_npt.out' %(M, N, r, cang)
+    append_bondlens(filename, types, M, N)
+    return
     all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
     
 #    plot_layer_density(glass, frames, t_start + 1)
