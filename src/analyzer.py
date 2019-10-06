@@ -687,17 +687,19 @@ def plot_stresszz_d(all_res, type):
     print(fz_polcoeffs)
     print(az_polcoeffs)
     polfz = np.poly1d(fz_polcoeffs)
-    fig, ax = plt.subplots(4, 1)
+    fig, ax = plt.subplots(2, 2)
     E_moduli = [2 * fzs[i] * math.tan(math.radians(45))/ areas[i] for i in range(len(ds)) ]
-    ax[0].plot(ds, num_intrs, 'g')
-    ax[0].set_ylabel("N", rotation = 0)
-    ax[1].plot(ds, areas, 'r')
-    ax[1].set_ylabel("A", rotation = 0)
-    ax[2].plot(ds, fzs, 'k')
-    ax[2].set_ylabel("$F_z$", rotation = 0)
-    ax[3].plot(ds, strs_z, 'b')
-    ax[3].set_ylabel("$\sigma_{zz}$", rotation = 0)
-    ax[3].set_xlabel("$d$")
+    ax[0][0].plot(ds, num_intrs, 'g')
+    ax[0][0].set_ylabel("N", rotation = 0)
+    ax[0][1].plot(ds, areas, 'r')
+    ax[0][1].set_ylabel("A", rotation = 0)
+    ax[1][0].plot(ds, fzs, 'k')
+    ax[1][0].set_ylabel("$F_z$", rotation = 0)
+    ax[1][1].plot(ds, strs_z, 'b')
+    ax[1][1].set_ylabel("$\sigma_{zz}$", rotation = 0)
+    for i in range(2):
+        for j in range(2):
+            ax[i][j].set_xlabel("$d$")
     fig.suptitle("Shift d = %g" %d0)
     plt.show()
     plt.plot(ds, fzs, label = "F_z vs d")
@@ -722,12 +724,12 @@ def main():
     #oligomer_type = 3
     M, N = 2000, 500
     r = 10
-    cang = 10
+    cang = 60
     tip_type = 2
     glass = 1
     t_start = 1
-    t_end = 60
-    types = [glass]
+    t_end = 20
+    types = [tip_type]
     '''
     bond testing
     filename = '../visfiles/viscomp_M%d_N%d.out' %(M, N)
@@ -735,8 +737,8 @@ def main():
     broken_bonds(frames, glass, M, N, 1.5)
     return'''
     filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d_npt.out' %(M, N, r, cang)
-    append_bondlens(filename, types, M, N)
-    return
+    #append_bondlens(filename, types, M, N)
+    #return
     all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
     
 #    plot_layer_density(glass, frames, t_start + 1)

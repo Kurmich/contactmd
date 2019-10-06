@@ -442,12 +442,12 @@ class SimulationStructure:
 
 def main():
     d = 2**(1/6)
-    Dx, Dy, Dz = 73, 73, 3  #195, 195, 3
+    Dx, Dy, Dz = 50, 50, 3  #195, 195, 3
     Dz_tip = (2**(1/2)) * d
-    radius = 0
+    radius = 10
     units = 'lj'
     atom_style = 'bond'
-    cone_angle = 0
+    cone_angle = 75
 #    substrate = create_substrate('fcc', '001', d,  Dx, Dy, Dz)
     substrate_unit = StructureUnitParams('substrate', 'substrate', 'fcc', '001', d, 1, 1.0, atom_style,  Dx, Dy, Dz)
     d /= 2
@@ -461,7 +461,7 @@ def main():
     spherical_tip_unit.set_radius(radius)
     cone_tip_unit.set_num_of_layers(1)
     cone_tip_unit.set_radius(radius)
-    sim_str = SimulationStructure(units, [substrate_unit]) # SimulationStructure(units, [substrate_unit, spherical_tip_unit, lubricant])
+    sim_str = SimulationStructure(units, [cone_tip_unit]) # SimulationStructure(units, [substrate_unit, spherical_tip_unit, lubricant])
 #    sim_str = SimulationStructure(units, [substrate_unit, spherical_tip_unit]) # SimulationStructure(units, [substrate_unit, spherical_tip_unit, lubricant])
 #    sim_str.bring_to_contact('lubricant','substrate')
  #   oligomer = sim_str.make_substrate_glassy()
