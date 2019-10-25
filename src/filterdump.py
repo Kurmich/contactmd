@@ -1,6 +1,6 @@
 
-name = "visualize_M2000_N500_r10_cang75_npt.out"
-#name = "visualizepull_M2000_N256_r10_cang45_t7000000_npt.out"
+#name = "visualize_M2000_N256_r10_cang10.out"
+name = "visualizepull_M2000_N256_r10_cang10_t7000000_nve.out"
 #name = "viscomp_M2000_N500.out"
 
 filename = "../visfiles/" + name
@@ -27,10 +27,13 @@ with open(filename, 'r') as f:
     for line in f:
         words = line.split()
         if RepresentsInt(words[0]) and len(words) > 5:
-            fz, fy, fx = abs(float(words[-1])), abs(float(words[-2])), abs(float(words[-3]))
-            if fx < epsilon: words[-3] = "0"
-            if fy < epsilon: words[-2] = "0"
-            if fz < epsilon: words[-1] = "0"
+            for i in range(len(words)):
+                val = abs(float(words[i]))
+                if val < epsilon: words[i] = "0"
+            #fz, fy, fx = abs(float(words[-1])), abs(float(words[-2])), abs(float(words[-3]))
+            #if fx < epsilon: words[-3] = "0"
+            #if fy < epsilon: words[-2] = "0"
+            #if fz < epsilon: words[-1] = "0"
             newline = ' '.join(words) + "\n"
             newfile.write(newline)
         else:

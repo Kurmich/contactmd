@@ -9,62 +9,61 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 
-B = 1
-q = 1
-Q = 1
-m = 1
-c = 1
-k = 1 #8.9875517873681764 * 10**9
-R0 = 3
 
-C1 =  k * q * Q / m
-C2 =   q * B / (m*c)
-ang = 0
-ang_vel = 0
-ang_acc = 0
-acc = -C1 / (R0 * R0)
-pos = R0
-vel = 0
-dt = 0.01
-times = np.arange(0, 147, dt)
-rs = []
-thetas = []
-a = (2 * q * Q/ (m * R0)) *(2 * m *c / (q*B))**2
-tmp = 3 * (3 * math.sqrt(3 * (4*a**3 - 13*a**2 + 32*a)) + 9 * a + 16)**(1/3)
-rmin = R0 * ( tmp / (3 * 2**(1/3)) - 1/3 - 2**(1/3) * (3 * a - 4) / tmp) /3
+N = 100
+R = 3
+
+beta_min = -math.pi / 4
+beta_max =  math.pi / 4
+betas = np.linspace(beta_min, beta_max, 500, endpoint = True)
+
+theta_min = 0
+theta_max = math.pi / 2
+thetas = np.linspace(theta_min, theta_max, 1000)
+
+rs = np.linspace(0, 0.99*R, 1000)
 
 
-for t in times:
-    new_pos = pos + vel * dt + acc*dt*dt * 0.5
-    new_ang = ang + ang_vel * dt + ang_acc*ang_acc*dt*dt * 0.5
-    
-    
-    new_ang_vel = 0.5 * C2 * (1 - (R0/new_pos)**2)
-    
-    new_acc = - C1 / (new_pos * new_pos) -  C2 * new_ang_vel * pos
-    
-    new_vel = vel + (acc + new_acc) * dt * 0.5
-    new_ang_acc =  C2 * R0*R0 * new_vel / (new_pos**3)
-    
-    ang = new_ang
-    ang_vel = new_ang_vel
-    ang_acc = new_ang_acc
-    
-    pos = new_pos
-    acc = new_acc
-    vel = new_vel
-    
-    rs.append(pos)
-    thetas.append(ang)
+mu_n = 1
+I = 1
+dI = I / N
+coef = mu_n * I / (2 * math.pi) # this actually doesn't matter since we are taking the ratio in the end
 
-xs = [rs[i] * math.cos(thetas[i]) / R0 for i in range(len(times)) ]
-ys = [rs[i] * math.sin(thetas[i]) / R0 for i in range(len(times)) ]
-plt.plot( xs, ys, label = 'Trajectory')
+alpha_l  = lambda r, theta, beta: math.atan2( (R * math.sin(beta) - r * math.sin(theta)), (R * math.cos(beta) + r * math.cos(theta)) )
 
-xs = [rmin * math.cos(thetas[i]) / R0 for i in range(len(times)) ]
-ys = [rmin * math.sin(thetas[i]) / R0 for i in range(len(times)) ]
-plt.plot( xs, ys, label = r'$R_{min}$')
-plt.xlabel(r'$x/R_0$')
-plt.ylabel(r'$y/R_0$')
-plt.legend()
-plt.show()
+alpha_r  = lambda r, theta, beta: math.atan2( (R * math.sin(beta) - r * math.sin(theta)), (R * math.cos(beta) - r * math.cos(theta)) )
+
+a      = lambda r, theta, beta: math.sqrt( (R * math.sin(beta) - r * math.sin(theta))**2 + (R * math.cos(beta) - r * math.cos(theta))**2 )
+
+b      = lambda r, theta, beta: math.sqrt( (R * math.sin(beta) - r * math.sin(theta))**2 + (R * math.cos(beta) + r * math.cos(theta))**2 )
+
+def dB_l(r, theta, beta):
+    alpha = alpha_l(r, theta, beta)
+    dB_lx =  -  coef *  math.sin(alpha) / b(r, theta, beta)  
+    dB_ly = -  coef * math.cos(alpha)/ b(r, theta, beta) 
+    return dB_lx, dB_ly
+
+def dB_r(r, theta, beta):
+    alpha = alpha_r(r, theta, beta)
+    dB_rx =   coef *  math.sin(alpha)/ a(r, theta, beta) 
+    dB_ry = - coef * math.cos(alpha) / a(r, theta, beta) 
+    return dB_rx, dB_ry
+
+
+Bx2, By2 = 0, 0
+count = 0
+for r in rs:
+    for theta in thetas:
+        Bx, By = 0, 0
+        for beta in betas:
+            dB_lx, dB_ly = dB_l(r, theta, beta)
+            dB_rx, dB_ry = dB_r(r, theta, beta)
+            Bx += (dB_rx + dB_lx)
+            By += (dB_ry + dB_ly)
+        #print(Bx, By)
+        Bx2 += (Bx**2) 
+        By2 += (By**2)
+
+#since we are taking ratio all cofficients do not matter
+
+print(Bx2/By2) # = 0.01389203151903227

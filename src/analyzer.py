@@ -28,6 +28,7 @@ class AtomicForces:
         self.x, self.y, self.z = x, y, z
         self.fx, self.fy, self.fz = fx, fy, fz
         self.radius = self.get_radius(x, y, 0)
+        self.attributes = {}
 
     def get_radius(self, x, y, z):
         return math.sqrt(x**2 + y**2 + z**2)
@@ -98,7 +99,13 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                    # print(len(line.split(' ')))
                     if skip:
                         continue
-                    id, mol, type, x, y, z, fx, fy, fz, _  = line.split(' ')
+                    line = line.strip()
+                    #print(line)
+                    #print(line.split(' ', 10))
+                    '''Return a list of the words in the string, using sep as the delimiter string. 
+                    If maxsplit is given, at most maxsplit splits are done (thus, the list will have at most maxsplit+1 elements). 
+                    If maxsplit is not specified or -1, then there is no limit on the number of splits (all possible splits are made).'''
+                    id, mol, type, x, y, z, fx, fy, fz, arributes  = line.split(' ', 9)
                     id, mol, type, x, y, z, fx, fy, fz = int(id), int(mol), int(type), float(x), float(y), float(z), float(fx), float(fy), float(fz)
                     if type not in types: continue
                     if interacting and abs(fx) < epsilon and abs(fy) < epsilon and abs(fz) < epsilon: continue
@@ -135,6 +142,8 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                 print("Next 3 lines are bondaries")
             elif 'ITEM: ATOMS' in line:
                 r_atoms = True
+                atr_line = line[line.index('S')+1:]
+                atr_words = atr_line.split(' ')
                 print("Atom coordinate lines are coming")
     return all_res
 
@@ -678,7 +687,7 @@ def plot_stresszz_d(all_res, type):
         times.append(t)
         ds.append(del_z)
         strs_z.append(str_z)
-        if del_z > 5 and del_z < 10:
+        if del_z > 8 and del_z < 12:
             avg_strs += str_z
             cnt += 1
         print("Displacement d: %g Contact Depth: %g Num of particles: %d Total Fz: %g Area: %g StressZ: %g E: %g" %(del_z,hc,count,fz, area, str_z, E_modulus))
@@ -701,12 +710,13 @@ def plot_stresszz_d(all_res, type):
         for j in range(2):
             ax[i][j].set_xlabel("$d$")
     fig.suptitle("Shift d = %g" %d0)
+    print("Avg stress: %g" %(avg_strs/cnt))
     plt.show()
+    '''
     plt.plot(ds, fzs, label = "F_z vs d")
     ds2 = [d**2 for d in ds]
     plt.plot(ds2, fzs)
     slope, intercept, r_value, p_value, std_err = stats.linregress(ds2,fzs)
-    print("Avg stress: %g" %(avg_strs/cnt))
     print("slope: %g intercept: %g r_val: %g p_val: %g std_err: %g" %(slope, intercept, r_value, p_value, std_err))
     plt.ylabel('$F_z$')
     plt.xlabel('$d^2$')
@@ -716,27 +726,28 @@ def plot_stresszz_d(all_res, type):
     plt.plot(ds, strs_z)
     plt.show()
     print(E_moduli)
+    '''
 
 def main():
     #plot_nforce_vs_cont_area()
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
-    M, N = 2000, 500
+    M, N = 2000, 256
     r = 10
-    cang = 60
+    cang = 45
     tip_type = 2
     glass = 1
     t_start = 1
-    t_end = 20
+    t_end = 50
     types = [tip_type]
-    '''
-    bond testing
-    filename = '../visfiles/viscomp_M%d_N%d.out' %(M, N)
-    frames = get_frames(filename, t_start, t_end)
-    broken_bonds(frames, glass, M, N, 1.5)
-    return'''
-    filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d_npt.out' %(M, N, r, cang)
+    
+    #bond testing
+    #filename = '../visfiles/viscomp_M%d_N%d.out' %(M, N)
+    #frames = get_frames(filename, t_start, t_end)
+    #broken_bonds(frames, glass, M, N, 1.5)
+    #return
+    filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
     #append_bondlens(filename, types, M, N)
     #return
     all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
