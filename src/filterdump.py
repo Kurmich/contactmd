@@ -1,6 +1,6 @@
 
 #name = "visualize_M2000_N256_r10_cang10.out"
-name = "visualizepull_M2000_N256_r10_cang10_t7000000_nve.out"
+name = "visualizepull_M2000_N256_r10_cang60_t5000000_nve.out"
 #name = "viscomp_M2000_N500.out"
 
 filename = "../visfiles/" + name

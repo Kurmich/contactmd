@@ -2,6 +2,7 @@ from fcc import *
 import secrets
 from scipy import stats
 from scipy.spatial import ConvexHull
+from scipy.spatial import KDTree
 forces = [500.0]
 poisson = 0.5
 G_shear_mod = 16.0
@@ -29,6 +30,7 @@ class AtomicForces:
         self.fx, self.fy, self.fz = fx, fy, fz
         self.radius = self.get_radius(x, y, 0)
         self.attributes = {}
+        self.neighbors = [] 
 
     def get_radius(self, x, y, z):
         return math.sqrt(x**2 + y**2 + z**2)
@@ -38,6 +40,27 @@ class AtomicForces:
         return self.radius == other.radius
 
 
+def add_neighbors(atom_forces, rc):
+    '''rc - cutoff radius'''
+    N = len(atom_forces)
+    point2idx = {}
+    data = np.zeros([N, 3])
+    for i in range(N):
+        af = atom_forces[i]
+        x, y, z = af.x, af.y, af.z
+        data[i, 0], data[i, 1], data[i, 2] = x, y, z
+        point2idx[(x, y, z)] = i
+    tree = KDTree(data)
+    #NEED TO WRAP PBC
+    for i in range(N):
+        point = data[i, :]
+        nbrs = tree.query_ball_point(point, rc)
+        atom_forces[i].neighbors = nbrs
+        #for nbr in nbrs:
+            #atom_forces[i].neighbors.append(atom_forces[nbr])
+            #print(data[nbr, :])
+        #break
+        #print(nbrs)
 def binary_search_up(atom_forces, max_r):
     """Returns the index of atom located at radius closest to max_r (i.e. atom.radius <= max_r)"""
     lo = 0
@@ -739,9 +762,9 @@ def main():
     tip_type = 2
     glass = 1
     t_start = 1
-    t_end = 50
-    types = [tip_type]
-    
+    t_end = 3
+    types = [glass]
+    rc= 1.5
     #bond testing
     #filename = '../visfiles/viscomp_M%d_N%d.out' %(M, N)
     #frames = get_frames(filename, t_start, t_end)
@@ -751,7 +774,8 @@ def main():
     #append_bondlens(filename, types, M, N)
     #return
     all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
-    
+    atom_forces = all_res[glass][1]
+    add_neighbors(atom_forces, rc)
 #    plot_layer_density(glass, frames, t_start + 1)
  #   plot_layer_density(glass, frames, t_start + 20)
     #print_total_load(frames[0], substrate_type)
