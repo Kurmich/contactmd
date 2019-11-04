@@ -25,7 +25,8 @@ class SimulationSettings:
         self.d = d
     
 class AtomicForces:
-    def __init__(self, type, x, y, z, fx, fy, fz):
+    def __init__(self, a_id, type, x, y, z, fx, fy, fz):
+        self.id = a_id
         self.x, self.y, self.z = x, y, z
         self.fx, self.fy, self.fz = fx, fy, fz
         self.radius = self.get_radius(x, y, 0)
@@ -40,7 +41,7 @@ class AtomicForces:
         return self.radius == other.radius
 
 
-def add_neighbors(atom_forces, rc):
+def contruct_neighbors(atom_forces, rc):
     '''rc - cutoff radius'''
     N = len(atom_forces)
     point2idx = {}
@@ -61,6 +62,27 @@ def add_neighbors(atom_forces, rc):
             #print(data[nbr, :])
         #break
         #print(nbrs)
+
+
+def add_neighbors(all_pair_ids, all_res, atype):
+    N = len(all_pair_ids)
+    N1 = len(all_res)
+    assert N == N1
+    for i in range(N):
+        pair_count = 0
+        pair_ids = all_pair_ids[i]
+        atomic_forces = all_res[i]
+        M = len(pair_ids)
+        for (id1, id2) in pair_ids:
+            if id1 > M or id2 > M: continue
+            af1 = atomic_forces[atype][id1-1] ## ASSUMING ATOMS ARE SORTED ACCORDING TO THEIR IDS
+            af2 = atomic_forces[atype][id2-1]
+            print(af1.id, id1, af2.id, id2)
+            assert af1.id == id1 and af2.id == id2
+            af1.neighbors.append(af2)
+            af2.neighbors.append(af1)
+            pair_count += 1
+        print("i: %d number of pairs: %d" %(i, pair_count))
 def binary_search_up(atom_forces, max_r):
     """Returns the index of atom located at radius closest to max_r (i.e. atom.radius <= max_r)"""
     lo = 0
@@ -86,6 +108,71 @@ def binary_search_low(atom_forces, min_r):
             lo = mid
     return hi
 
+
+def get_pair_interactions(filename, t_start, t_end):
+    assert t_start <= t_end
+    r_time = False
+    r_entry_count = False
+    r_boundary = False
+    r_entries = False
+    skip = False
+    d = 0
+    t = 0
+    all_pair_ids = []
+    res = []
+    with open(filename) as file:
+        for line in file:
+            #check what kind of data to expect in this line
+            if r_time:
+                time = int(line)
+                print("Time step: %d" %time)
+                r_time = False
+            elif r_entry_count:
+                count = int(line)
+                res = []
+                print("# of pair ids: %d" %count)
+                r_entry_count = False
+            elif r_boundary:
+                d -= 1
+                r_boundary = False if d == 0 else True
+            elif r_entries:
+                if 'ITEM: TIMESTEP' in line:
+                    r_entries = False
+                else:
+                    #print("reading atoms")
+                   # print(len(line.split(' ')))
+                    if skip:
+                        continue
+                    line = line.strip()
+                    id1, id2  = line.split(' ')
+                    id1, id2 = int(id1), int(id2)
+                    res.append((id1, id2))
+                    
+
+            #set what kind of data to expect in next lines
+            if 'ITEM: TIMESTEP' in line:
+                if len(res) != 0:
+                    all_pair_ids.append(res)
+                r_time = True
+                t += 1
+                if t > t_end:
+                    break
+                if t < t_start:
+                    skip = True
+                else:
+                    skip = False
+                print("Next is timestep")
+            elif 'ITEM: NUMBER OF ENTRIES' in line:
+                r_entry_count = True
+                print("Next is number of entries")
+            elif 'ITEM: BOX BOUNDS pp pp mm' in line:
+                r_boundary = True
+                d = 3
+                print("Next 3 lines are bondaries")
+            elif 'ITEM: ENTRIES' in line:
+                r_entries = True
+                print("Pair id lines are coming")
+    return all_pair_ids
 
 def get_interactions(filename, t_start, t_end, types, interacting = False):
     assert t_start <= t_end
@@ -128,14 +215,14 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                     '''Return a list of the words in the string, using sep as the delimiter string. 
                     If maxsplit is given, at most maxsplit splits are done (thus, the list will have at most maxsplit+1 elements). 
                     If maxsplit is not specified or -1, then there is no limit on the number of splits (all possible splits are made).'''
-                    id, mol, type, x, y, z, fx, fy, fz, arributes  = line.split(' ', 9)
-                    id, mol, type, x, y, z, fx, fy, fz = int(id), int(mol), int(type), float(x), float(y), float(z), float(fx), float(fy), float(fz)
-                    if type not in types: continue
+                    a_id, mol, atype, x, y, z, fx, fy, fz, arributes  = line.split(' ', 9)
+                    a_id, mol, atype, x, y, z, fx, fy, fz = int(a_id), int(mol), int(atype), float(x), float(y), float(z), float(fx), float(fy), float(fz)
+                    if atype not in types: continue
                     if interacting and abs(fx) < epsilon and abs(fy) < epsilon and abs(fz) < epsilon: continue
                     #choose interacting atoms
                     radius = math.sqrt(x**2 + y**2)
-                    if type not in res: res[type] = []
-                    res[type].append(AtomicForces(type, x, y, z, fx, fy, fz))
+                    if atype not in res: res[atype] = []
+                    res[atype].append(AtomicForces(a_id, atype, x, y, z, fx, fy, fz))
                     max_r = max(max_r, radius)
                     
                     
@@ -144,7 +231,7 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
             if 'ITEM: TIMESTEP' in line:
                 if len(res) != 0:
                     for type, atom_forces in res.items():
-                        l = sorted(atom_forces)
+                        l = sorted(atom_forces, key = lambda af: af.id)
                         res[type] = l
                     all_res.append(res)
                 r_time = True
@@ -762,7 +849,7 @@ def main():
     tip_type = 2
     glass = 1
     t_start = 1
-    t_end = 3
+    t_end = 5
     types = [glass]
     rc= 1.5
     #bond testing
@@ -771,11 +858,15 @@ def main():
     #broken_bonds(frames, glass, M, N, 1.5)
     #return
     filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
+    filenameinteractions = '../visfiles/pairids_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
     #append_bondlens(filename, types, M, N)
     #return
     all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
-    atom_forces = all_res[glass][1]
-    add_neighbors(atom_forces, rc)
+    all_inter = get_pair_interactions(filenameinteractions, t_start, t_end)
+    add_neighbors(all_inter, all_res, glass)
+    return
+    #atom_forces = all_res[glass][1]
+    #add_neighbors(atom_forces, rc)
 #    plot_layer_density(glass, frames, t_start + 1)
  #   plot_layer_density(glass, frames, t_start + 20)
     #print_total_load(frames[0], substrate_type)
