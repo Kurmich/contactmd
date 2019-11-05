@@ -72,7 +72,7 @@ def add_neighbors(all_pair_ids, all_res, atype):
         pair_count = 0
         pair_ids = all_pair_ids[i]
         atomic_forces = all_res[i]
-        M = len(pair_ids)
+        M = len(atomic_forces[atype])
         for (id1, id2) in pair_ids:
             if id1 > M or id2 > M: continue
             af1 = atomic_forces[atype][id1-1] ## ASSUMING ATOMS ARE SORTED ACCORDING TO THEIR IDS
