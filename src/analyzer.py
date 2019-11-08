@@ -41,6 +41,58 @@ class AtomicForces:
         return self.radius == other.radius
 
 
+
+def get_lj_bond_stats(all_res, atype, percent):
+    
+    N = len(all_res)
+    for i in range(1, N):
+        broken_count = 0
+        formed_count = 0
+        atom_forces = all_res[i][atype]
+        atom_forces_p = all_res[i-1][atype]
+        M = len(atom_forces)
+        for j in range(1, M):
+            af = atom_forces[j]
+            af_p = atom_forces_p[j]
+            assert af.id == af_p.id
+            count_lj_change, broken_count, formed_count = get_stats(af_p, af_p.neighbors, af, af.neighbors, percent)
+        print("change: %d broken: %d formed: %d" %(count_lj_change, broken_count, formed_count))
+
+
+def get_stats(af_p, nbr_list_p, af, nbr_list, percent):
+    count_lj_change = 0
+    prev_ids = {}
+    cur_ids = {}
+    for i in range(len(nbr_list_p)): prev_ids[nbr_list_p[i].id] = i 
+    for i in range(len(nbr_list)):   cur_ids[nbr_list[i].id] = i 
+    for nbr_prev in nbr_list_p:
+        nbr_id = nbr_prev.id
+        if nbr_id in cur_ids:
+            af_nbr_p = nbr_list_p[prev_ids[nbr_id]]
+            af_nbr   = nbr_list[cur_ids[nbr_id]]
+            r_prev = math.sqrt( (af_p.x - af_nbr_p.x)**2 + (af_p.y - af_nbr_p.y)**2 + (af_p.z - af_nbr_p.z)**2 ) 
+            r_cur = math.sqrt( (af.x - af_nbr.x)**2 + (af.y - af_nbr.y)**2 + (af.z - af_nbr.z)**2 )
+            if abs(r_prev - r_cur) / r_prev > percent: count_lj_change += 1
+            
+    broken_count = 0
+    for nbr_prev in nbr_list_p:
+        if nbr_prev.id not in cur_ids: broken_count += 1
+    
+    formed_count = 0
+    for nbr_cur in nbr_list:
+        if nbr_cur.id not in prev_ids: formed_count += 1
+        
+    return count_lj_change, broken_count, formed_count
+            
+           
+def is_neighbor(a_id, neighbor_list):
+    for nbr in neighbor_list:
+        if a_id == nbr.id:
+            return True
+    return False
+def get_separation(af1, af2):
+    return math.sqrt((af1.x - af2.x)**2 + (af1.y - af2.y)**2 + (af1.z - af2.z)**2)
+
 def contruct_neighbors(atom_forces, rc):
     '''rc - cutoff radius'''
     N = len(atom_forces)
@@ -77,7 +129,7 @@ def add_neighbors(all_pair_ids, all_res, atype):
             if id1 > M or id2 > M: continue
             af1 = atomic_forces[atype][id1-1] ## ASSUMING ATOMS ARE SORTED ACCORDING TO THEIR IDS
             af2 = atomic_forces[atype][id2-1]
-            print(af1.id, id1, af2.id, id2)
+            #print(af1.id, id1, af2.id, id2)
             assert af1.id == id1 and af2.id == id2
             af1.neighbors.append(af2)
             af2.neighbors.append(af1)
@@ -848,8 +900,8 @@ def main():
     cang = 45
     tip_type = 2
     glass = 1
-    t_start = 1
-    t_end = 5
+    t_start = 21
+    t_end = 23
     types = [glass]
     rc= 1.5
     #bond testing
@@ -861,9 +913,10 @@ def main():
     filenameinteractions = '../visfiles/pairids_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
     #append_bondlens(filename, types, M, N)
     #return
-    all_res = get_interactions(filename, t_start, t_end, types, interacting = True)
+    all_res = get_interactions(filename, t_start, t_end, types, interacting = False)
     all_inter = get_pair_interactions(filenameinteractions, t_start, t_end)
     add_neighbors(all_inter, all_res, glass)
+    get_lj_bond_stats(all_res, glass, 0.02)
     return
     #atom_forces = all_res[glass][1]
     #add_neighbors(atom_forces, rc)
