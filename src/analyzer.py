@@ -51,16 +51,22 @@ def get_lj_bond_stats(all_res, atype, percent):
         atom_forces = all_res[i][atype]
         atom_forces_p = all_res[i-1][atype]
         M = len(atom_forces)
+        fig = plt.figure()
+        ax = Axes3D(fig)
         for j in range(1, M):
             af = atom_forces[j]
             af_p = atom_forces_p[j]
             assert af.id == af_p.id
-            count_lj_change, broken_count, formed_count = get_stats(af_p, af_p.neighbors, af, af.neighbors, percent)
+            lj_change, broken, formed = get_stats(af_p, af_p.neighbors, af, af.neighbors, percent)
+            count_lj_change, broken_count, formed_count = len(lj_change), len(broken), len(formed)
+            for (af1, af2) in lj_change:
+                ax.plot([af1.x, af2.x], [af1.y, af2.y], [af1.z, af2.z])
+            plt.show()
         print("change: %d broken: %d formed: %d" %(count_lj_change, broken_count, formed_count))
 
 
 def get_stats(af_p, nbr_list_p, af, nbr_list, percent):
-    count_lj_change = 0
+    lj_change = []
     prev_ids = {}
     cur_ids = {}
     for i in range(len(nbr_list_p)): prev_ids[nbr_list_p[i].id] = i 
@@ -72,17 +78,17 @@ def get_stats(af_p, nbr_list_p, af, nbr_list, percent):
             af_nbr   = nbr_list[cur_ids[nbr_id]]
             r_prev = math.sqrt( (af_p.x - af_nbr_p.x)**2 + (af_p.y - af_nbr_p.y)**2 + (af_p.z - af_nbr_p.z)**2 ) 
             r_cur = math.sqrt( (af.x - af_nbr.x)**2 + (af.y - af_nbr.y)**2 + (af.z - af_nbr.z)**2 )
-            if abs(r_prev - r_cur) / r_prev > percent: count_lj_change += 1
+            if abs(r_prev - r_cur) / r_prev > percent: lj_change.append((af, af_nbr))
             
-    broken_count = 0
+    broken = []
     for nbr_prev in nbr_list_p:
-        if nbr_prev.id not in cur_ids: broken_count += 1
+        if nbr_prev.id not in cur_ids: broken.append((af_p, nbr_prev))
     
-    formed_count = 0
+    formed = []
     for nbr_cur in nbr_list:
-        if nbr_cur.id not in prev_ids: formed_count += 1
+        if nbr_cur.id not in prev_ids: formed.append((af, nbr_cur))
         
-    return count_lj_change, broken_count, formed_count
+    return lj_change, broken, formed
             
            
 def is_neighbor(a_id, neighbor_list):
@@ -900,8 +906,8 @@ def main():
     cang = 45
     tip_type = 2
     glass = 1
-    t_start = 21
-    t_end = 23
+    t_start = 41
+    t_end = 45
     types = [glass]
     rc= 1.5
     #bond testing
@@ -916,7 +922,7 @@ def main():
     all_res = get_interactions(filename, t_start, t_end, types, interacting = False)
     all_inter = get_pair_interactions(filenameinteractions, t_start, t_end)
     add_neighbors(all_inter, all_res, glass)
-    get_lj_bond_stats(all_res, glass, 0.02)
+    get_lj_bond_stats(all_res, glass, 0.1)
     return
     #atom_forces = all_res[glass][1]
     #add_neighbors(atom_forces, rc)
