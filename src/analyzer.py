@@ -42,30 +42,37 @@ class AtomicForces:
 
 
 
-def get_lj_bond_stats(all_res, atype, percent):
+def get_lj_bond_stats(all_res, atype, bounds, percent):
     
     N = len(all_res)
     for i in range(1, N):
         broken_count = 0
         formed_count = 0
+        lj_change_count = 0
         atom_forces = all_res[i][atype]
         atom_forces_p = all_res[i-1][atype]
         M = len(atom_forces)
-        fig = plt.figure()
-        ax = Axes3D(fig)
+        #fig = plt.figure()
+        #ax = Axes3D(fig)
         for j in range(1, M):
             af = atom_forces[j]
             af_p = atom_forces_p[j]
             assert af.id == af_p.id
-            lj_change, broken, formed = get_stats(af_p, af_p.neighbors, af, af.neighbors, percent)
-            count_lj_change, broken_count, formed_count = len(lj_change), len(broken), len(formed)
-            for (af1, af2) in lj_change:
-                ax.plot([af1.x, af2.x], [af1.y, af2.y], [af1.z, af2.z])
-            plt.show()
-        print("change: %d broken: %d formed: %d" %(count_lj_change, broken_count, formed_count))
+            lj_change, broken, formed = get_stats(af_p, af_p.neighbors, af, af.neighbors, bounds, percent)
+            lj_change_count += len(lj_change) 
+            broken_count    += len(broken) 
+            formed_count    += len(formed)
+            #for (af1, af2) in lj_change:
+                #ax.plot([af1.x, af2.x], [af1.y, af2.y], [af1.z, af2.z])
+        #plt.show()
+        #fig.savefig("t: %d.png" %i)
+        print("i: %d change: %d broken: %d formed: %d" %(i, lj_change_count, broken_count, formed_count))
 
 
-def get_stats(af_p, nbr_list_p, af, nbr_list, percent):
+def get_stats(af_p, nbr_list_p, af, nbr_list, bounds, percent):
+    Lx = abs(bounds[0][0]) + abs(bounds[0][1])
+    Ly = abs(bounds[1][0]) + abs(bounds[1][1])
+    Lz = abs(bounds[2][0]) + abs(bounds[2][1])
     lj_change = []
     prev_ids = {}
     cur_ids = {}
@@ -76,8 +83,15 @@ def get_stats(af_p, nbr_list_p, af, nbr_list, percent):
         if nbr_id in cur_ids:
             af_nbr_p = nbr_list_p[prev_ids[nbr_id]]
             af_nbr   = nbr_list[cur_ids[nbr_id]]
-            r_prev = math.sqrt( (af_p.x - af_nbr_p.x)**2 + (af_p.y - af_nbr_p.y)**2 + (af_p.z - af_nbr_p.z)**2 ) 
-            r_cur = math.sqrt( (af.x - af_nbr.x)**2 + (af.y - af_nbr.y)**2 + (af.z - af_nbr.z)**2 )
+            '''ASSUMING NON-PBC in z direction'''
+            dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, Lx), get_displ_pbr(af_p.y, af_nbr_p.y, Ly), (af_p.z - af_nbr_p.z)
+            r_prev = math.sqrt( dx**2 + dy**2 + dz**2 ) 
+            dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, Lx), get_displ_pbr(af.y, af_nbr.y, Ly), (af.z - af_nbr.z)
+            r_cur = math.sqrt( dx**2 + dy**2 + dz**2 )
+            #assert af in af_nbr.neighbors
+            #assert af_p in af_nbr_p.neighbors
+            assert af_nbr_p.id == af_nbr.id
+            assert r_prev < 1.501 and r_cur < 1.501, "Interaction distance is > rc = 1.5 r_prev: %g r_cur: %g" %(r_prev, r_cur)
             if abs(r_prev - r_cur) / r_prev > percent: lj_change.append((af, af_nbr))
             
     broken = []
@@ -223,7 +237,7 @@ def get_pair_interactions(filename, t_start, t_end):
             elif 'ITEM: NUMBER OF ENTRIES' in line:
                 r_entry_count = True
                 print("Next is number of entries")
-            elif 'ITEM: BOX BOUNDS pp pp mm' in line:
+            elif 'ITEM: BOX BOUNDS' in line:
                 r_boundary = True
                 d = 3
                 print("Next 3 lines are bondaries")
@@ -242,7 +256,9 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
     d = 0
     t = 0
     max_r = 0
+    pbcX, pbcY, pbcZ = False, False, False #boundary periodicity flags
     all_res = []
+    bounds = []
     res = dict()
     with open(filename) as file:
         for line in file:
@@ -257,6 +273,11 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                 print("# of atoms: %d" %count)
                 r_atom_count = False
             elif r_boundary:
+                if len(bounds) < 3:
+                    words = line.strip().split()
+                    Lmin, Lmax = map(float, words)
+                    bounds.append((Lmin, Lmax))    
+                    print(Lmin, Lmax, d)
                 d -= 1
                 r_boundary = False if d == 0 else True
             elif r_atoms:
@@ -304,7 +325,11 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
             elif 'ITEM: NUMBER OF ATOMS' in line:
                 r_atom_count = True
                 print("Next is number of atoms")
-            elif 'ITEM: BOX BOUNDS pp pp mm' in line:
+            elif 'ITEM: BOX BOUNDS' in line:
+                words = line.strip().split()
+                pbcX = True if words[-3] == "pp" else False
+                pbcY = True if words[-2] == "pp" else False
+                pbcZ = True if words[-1] == "pp" else False
                 r_boundary = True
                 d = 3
                 print("Next 3 lines are bondaries")
@@ -313,7 +338,7 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                 atr_line = line[line.index('S')+1:]
                 atr_words = atr_line.split(' ')
                 print("Atom coordinate lines are coming")
-    return all_res
+    return all_res, bounds
 
 
 
@@ -906,7 +931,7 @@ def main():
     cang = 45
     tip_type = 2
     glass = 1
-    t_start = 41
+    t_start = 40
     t_end = 45
     types = [glass]
     rc= 1.5
@@ -919,10 +944,10 @@ def main():
     filenameinteractions = '../visfiles/pairids_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
     #append_bondlens(filename, types, M, N)
     #return
-    all_res = get_interactions(filename, t_start, t_end, types, interacting = False)
+    all_res, bounds = get_interactions(filename, t_start, t_end, types, interacting = False)
     all_inter = get_pair_interactions(filenameinteractions, t_start, t_end)
     add_neighbors(all_inter, all_res, glass)
-    get_lj_bond_stats(all_res, glass, 0.1)
+    get_lj_bond_stats(all_res, glass, bounds, 0.2)
     return
     #atom_forces = all_res[glass][1]
     #add_neighbors(atom_forces, rc)
