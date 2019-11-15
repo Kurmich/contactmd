@@ -45,10 +45,12 @@ class AtomicForces:
 def get_lj_bond_stats(all_res, atype, bounds, percent):
     breaks = []
     formations = []
-    changes = []
+    changes_comp = []
+    changes_ext = []
     N = len(all_res)
     for i in range(1, N):
-        lj_change_count = 0
+        lj_change_count_c = 0
+        lj_change_count_e = 0
         broken_count    = 0 
         formed_count    = 0
         atom_forces = all_res[i][atype]
@@ -60,19 +62,21 @@ def get_lj_bond_stats(all_res, atype, bounds, percent):
             af = atom_forces[j]
             af_p = atom_forces_p[j]
             assert af.id == af_p.id
-            lj_change, broken, formed = get_stats(af_p, af_p.neighbors, af, af.neighbors, bounds, percent)
-            lj_change_count += len(lj_change) 
+            lj_change_comp, lj_change_ext, broken, formed = get_stats(af_p, af_p.neighbors, af, af.neighbors, bounds, percent)
+            lj_change_count_c += len(lj_change_comp)
+            lj_change_count_e += len(lj_change_ext)
             broken_count    += len(broken) 
             formed_count    += len(formed)
             #for (af1, af2) in lj_change:
                 #ax.plot([af1.x, af2.x], [af1.y, af2.y], [af1.z, af2.z])
-        changes.append(lj_change_count)
-        breaks.append(broken_count)
-        formations.append(formed_count)
+        changes_comp.append(lj_change_count_c/2)
+        changes_ext.append(lj_change_count_e/2)
+        breaks.append(broken_count/2)
+        formations.append(formed_count/2)
         #plt.show()
         #fig.savefig("t: %d.png" %i)
-        print("i: %d change: %d broken: %d formed: %d" %(i, lj_change_count, broken_count, formed_count))
-    return changes, breaks, formations
+        print("i: %d change comp: %g change ext: %d broken: %d formed: %d" %(i, lj_change_count_c, lj_change_count_e, broken_count, formed_count))
+    return changes_comp, changes_ext, breaks, formations
 
 
 def get_stats(af_p, nbr_list_p, af, nbr_list, bounds, percent):
@@ -80,7 +84,8 @@ def get_stats(af_p, nbr_list_p, af, nbr_list, bounds, percent):
     Ly = abs(bounds[1][0]) + abs(bounds[1][1])
     Lz = abs(bounds[2][0]) + abs(bounds[2][1])
     r_cutoff = 1.501 
-    lj_change = []
+    lj_change_comp = []
+    lj_change_ext = []
     prev_ids = {}
     cur_ids = {}
     for i in range(len(nbr_list_p)): prev_ids[nbr_list_p[i].id] = i 
@@ -99,7 +104,10 @@ def get_stats(af_p, nbr_list_p, af, nbr_list, bounds, percent):
             #assert af_p in af_nbr_p.neighbors
             assert af_nbr_p.id == af_nbr.id
             assert r_prev < r_cutoff and r_cur < r_cutoff, "Interaction distance is > rc = %g r_prev: %g r_cur: %g" %(r_cutoff, r_prev, r_cur)
-            if abs(r_prev - r_cur) / r_prev > percent: lj_change.append((af, af_nbr))
+            if abs(r_prev - r_cur) / r_prev > percent and r_cur > r_prev: 
+                lj_change_comp.append((af, af_nbr))
+            elif abs(r_prev - r_cur) / r_prev > percent:
+                lj_change_ext.append((af, af_nbr))
             
     broken = []
     for nbr_prev in nbr_list_p:
@@ -109,7 +117,7 @@ def get_stats(af_p, nbr_list_p, af, nbr_list, bounds, percent):
     for nbr_cur in nbr_list:
         if nbr_cur.id not in prev_ids: formed.append((af, nbr_cur))
         
-    return lj_change, broken, formed
+    return lj_change_comp, lj_change_ext, broken, formed
             
            
 def is_neighbor(a_id, neighbor_list):
@@ -181,6 +189,18 @@ def visualize_neighbors(atom_forces, bounds):
                 ax.plot([af.x, x_next], [af.y, y_next], [af.z, z_next], color =  'cyan')
             #ax.scatter(nbr.x, nbr.y, nbr.z, c = 'green')
         ax.scatter(af.x, af.y, af.z, c = 'black')
+    plt.show()
+    
+def plot_neighbor_changes(times,  changes_comp, changes_ext, breaks, formations, pair_counts):
+    ccfrac = [changes_comp[i]/pair_counts[i]    for i in range(len(changes_comp))]
+    cefrac = [changes_ext[i]/pair_counts[i]    for i in range(len(changes_ext))]
+    bfrac = [breaks[i]/pair_counts[i]     for i in range(len(breaks))]
+    ffrac = [formations[i]/pair_counts[i] for i in range(len(formations))]
+    plt.plot(times[:-1], ccfrac, label = "Compressed")
+    plt.plot(times[:-1], cefrac, label = "Extended")
+    plt.plot(times[:-1], bfrac, label = "Broke")
+    plt.plot(times[:-1], ffrac, label = "Formed")
+    plt.legend()
     plt.show()
 
 def binary_search_up(atom_forces, max_r):
@@ -979,7 +999,8 @@ def main():
     all_res, bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
     all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
     add_neighbors(all_inter, all_res, glass)
-    changes, breaks, formations = get_lj_bond_stats(all_res, glass, bounds, 0.2)
+    changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, bounds, 0.2)
+    plot_neighbor_changes(times, changes_comp, changes_ext, breaks, formations, pair_counts)
     #af_2_visualize = all_res[2][glass][0:20]
     #visualize_neighbors(af_2_visualize, bounds)
     return
