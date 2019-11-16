@@ -191,15 +191,16 @@ def visualize_neighbors(atom_forces, bounds):
         ax.scatter(af.x, af.y, af.z, c = 'black')
     plt.show()
     
-def plot_neighbor_changes(times,  changes_comp, changes_ext, breaks, formations, pair_counts):
+def plot_neighbor_changes(times,  changes_comp, changes_ext, breaks, formations, pair_counts, vz, dt, d0):
     ccfrac = [changes_comp[i]/pair_counts[i]    for i in range(len(changes_comp))]
     cefrac = [changes_ext[i]/pair_counts[i]    for i in range(len(changes_ext))]
     bfrac = [breaks[i]/pair_counts[i]     for i in range(len(breaks))]
     ffrac = [formations[i]/pair_counts[i] for i in range(len(formations))]
-    plt.plot(times[:-1], ccfrac, label = "Compressed")
-    plt.plot(times[:-1], cefrac, label = "Extended")
-    plt.plot(times[:-1], bfrac, label = "Broke")
-    plt.plot(times[:-1], ffrac, label = "Formed")
+    ds = [vz*dt*t - d0 for t in times]
+    plt.plot(ds[:-1], ccfrac, label = "Compressed")
+    plt.plot(ds[:-1], cefrac, label = "Extended")
+    plt.plot(ds[:-1], bfrac, label = "Broke")
+    plt.plot(ds[:-1], ffrac, label = "Formed")
     plt.legend()
     plt.show()
 
@@ -335,6 +336,7 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
             elif r_atoms:
                 if 'ITEM: TIMESTEP' in line:
                     r_atoms = False
+                    r_time = True
                 else:
                     #print("reading atoms")
                    # print(len(line.split(' ')))
@@ -365,6 +367,8 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                         l = sorted(atom_forces, key = lambda af: af.id)
                         res[type] = l
                     all_res.append(res)
+                elif len(times) > 0:
+                    times.pop()
                 r_time = True
                 t += 1
                 if t > t_end:
@@ -860,26 +864,28 @@ def get_contact_depth(interacting_af):
         zhi = max(zhi, af.z)
     return zhi - zlo
 
-def plot_stresszz_d(all_res, type):
+def plot_stresszz_d(all_res, times, v, type):
     areas = []
-    times = []
+    #times = []
     ds  = []
     strs_z = []
     fzs = []
     num_intrs = []
-    dt = 0.01 * 500000
-    v = 0.0001
+    dt = 0.01
     d_start = 0
     t0 = 0
     d0 = 0
+    del_z0 = 0
     first_contact = True
     ts = 0
     avg_strs, cnt = 0, 0
     fz_prev = 0
     E_modulus = 0
-    for t in range(len(all_res)):
+    print(len(all_res), len(times))
+    for i in range(len(all_res)):
+        t = times[i]
         print("New timestep: %d" %t)
-        res = all_res[t]
+        res = all_res[i]
         interacting_af, points = interacting_particles(res[type])
         count = len(interacting_af)
         if count == 0:
@@ -887,8 +893,9 @@ def plot_stresszz_d(all_res, type):
         elif count < 3:
             #continue
             if first_contact:
-                t0 = t-1
-                print("First contact happens at t0 : %d" %t0)
+                t0 = times[i]
+                d0 = t0 * v * dt
+                print("First contact happens at t0 : %d d0: %g" %(t0, d0))
                 first_contact = False
            # continue
             fx, fy, fz = get_total_forces(interacting_af)
@@ -918,18 +925,18 @@ def plot_stresszz_d(all_res, type):
             fz_prev   = fz
             E_modulus = (stiffness * (math.pi**(1/2))) / (2 * area**(1/2))
         
-        del_z = (t - t0) * v * dt
-        if del_z < d0:
+        del_z = t * v * dt - d0
+        if del_z < del_z0:
             continue
         else:
-            del_z -= d0
+            del_z -= del_z0
         str_z = fz / area
         #if str_z > 3:
         #    continue
         areas.append(area)
         fzs.append(fz)
         num_intrs.append(count)
-        times.append(t)
+        #times.append(t)
         ds.append(del_z)
         strs_z.append(str_z)
         if del_z > 8 and del_z < 12:
@@ -972,7 +979,17 @@ def plot_stresszz_d(all_res, type):
     plt.show()
     print(E_moduli)
     '''
-
+    
+    
+def visualize_lj_bond_stats():
+    all_res, bounds, times = get_interactions(filename, t_start, t_end, types, interacting = True)
+    #print(times)
+    #return
+    all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
+    add_neighbors(all_inter, all_res, glass)
+    changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, bounds, 0.2)
+    plot_neighbor_changes(times, changes_comp, changes_ext, breaks, formations, pair_counts, vz)
+    
 def main():
     #plot_nforce_vs_cont_area()
     #substrate_type = 1
@@ -980,6 +997,7 @@ def main():
     #oligomer_type = 3
     M, N = 2000, 256
     r = 10
+    dt = 0.01
     cang = 45
     tip_type = 2
     glass = 1
@@ -987,6 +1005,8 @@ def main():
     t_end = 3
     types = [glass]
     rc= 1.5
+    vz = 0.0001
+    d0 = 0 #2.2
     #bond testing
     #filename = '../visfiles/viscomp_M%d_N%d.out' %(M, N)
     #frames = get_frames(filename, t_start, t_end)
@@ -997,13 +1017,15 @@ def main():
     #append_bondlens(filename, types, M, N)
     #return
     all_res, bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
+    #print(times)
+    #return
     all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
     add_neighbors(all_inter, all_res, glass)
     changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, bounds, 0.2)
-    plot_neighbor_changes(times, changes_comp, changes_ext, breaks, formations, pair_counts)
+    plot_neighbor_changes(times, changes_comp, changes_ext, breaks, formations, pair_counts, vz, dt, d0)
     #af_2_visualize = all_res[2][glass][0:20]
     #visualize_neighbors(af_2_visualize, bounds)
-    return
+    #return
     #atom_forces = all_res[glass][1]
     #add_neighbors(atom_forces, rc)
 #    plot_layer_density(glass, frames, t_start + 1)
@@ -1019,7 +1041,7 @@ def main():
     #tipframe = frame[indices, :]
     #interacting_af = interacting_particles(res[tip_type])
     #jarvis(interacting_af, visualize = True)
-    plot_stresszz_d(all_res, tip_type)
+    plot_stresszz_d(all_res, times, vz, tip_type)
     '''square = np.zeros([4, 2])
     square[1, 0] = 1
     square[2, 1] = 1
