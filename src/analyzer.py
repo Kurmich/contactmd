@@ -979,22 +979,80 @@ def plot_stresszz_d(all_res, times, v, type):
     plt.show()
     print(E_moduli)
     '''
+
+
+def plot_changes(ds, ccfrac, cefrac, contactd, percent):
+    cfrac = [ccfrac[i] + cefrac[i] for i in range(len(ccfrac))]
+    fig = plt.figure()
+    plt.title("Changes by %g %% vs displacement of the tip" %(100*percent))
+    plt.plot(ds, ccfrac, label = "Compressed")
+    plt.plot(ds, cefrac, label = "Extended")
+    plt.plot(ds, cfrac,  label = "Changed" )
+    plt.axvline(x=contactd)
+    plt.xlabel("d")
+    plt.ylabel("Fraction")
+    plt.legend()
+    #plt.show()
+
+def plot_breaks(ds, bfrac, ffrac, contactd):
+    plt.title("Broken and formed bond fractions  vs displacement of the tip")
+    plt.plot(ds, bfrac, label = "Broke")
+    plt.plot(ds, ffrac, label = "Formed")
+    plt.xlabel("d")
+    plt.ylabel("Fraction")
+    plt.axvline(x=contactd)
+    plt.legend()
+    #plt.show()
+
     
     
 def visualize_lj_bond_stats():
-    all_res, bounds, times = get_interactions(filename, t_start, t_end, types, interacting = True)
-    #print(times)
-    #return
-    all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
-    add_neighbors(all_inter, all_res, glass)
-    changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, bounds, 0.2)
-    plot_neighbor_changes(times, changes_comp, changes_ext, breaks, formations, pair_counts, vz)
+    M, N = 2000, 256
+    r = 10
+    dt = 0.01
+    cang = 45
+    tip_type = 2
+    glass = 1
+    types = [glass]
+    rc = 1.5
+    vz = 0.0001
+    d0 = 0 #2.2
+    t_init, t_final = 0,  10
+    t_step = 3
+    ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
+    ds = []
+    percent = 0.2
+    contactd = 2.2
+    dir = '../visfiles/'
+    filename = dir + 'visualize_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
+    filenameinteractions = dir + 'pairids_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
+    for t_start in range(t_init, t_final, t_step):
+        t_end = t_start + t_step
+        all_res, bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
+        all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
+        add_neighbors(all_inter, all_res, glass)
+        changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, bounds, percent)
+        ccfrac.extend([changes_comp[i]/pair_counts[i]    for i in range(len(changes_comp))] )
+        cefrac.extend( [changes_ext[i]/pair_counts[i]    for i in range(len(changes_ext))] )
+        bfrac.extend( [breaks[i]/pair_counts[i]     for i in range(len(breaks))] )
+        ffrac.extend( [formations[i]/pair_counts[i] for i in range(len(formations))] )
+        ds.extend( [vz*dt*times[i] - d0 for i in range(len(times)-1)] )
+    print(len(ds), len(ffrac))
+    plot_changes(ds, ccfrac, cefrac, contactd, percent)
+    plt.savefig("changes_M%d_N%d_r%d_cang%d.png" %(M, N, r, cang))
+    plt.close()
+    plot_breaks(ds, bfrac, ffrac, contactd)
+    plt.savefig("breaks_M%d_N%d_r%d_cang%d.png" %(M, N, r, cang))
+    plt.close()
+    
     
 def main():
     #plot_nforce_vs_cont_area()
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
+    visualize_lj_bond_stats()
+    return
     M, N = 2000, 256
     r = 10
     dt = 0.01
