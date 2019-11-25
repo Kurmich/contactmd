@@ -352,8 +352,9 @@ def read_goal(filename):
 def main():
     xs, ys = read_goal("goal.txt")
 #    return
-    M = 1000
+    M = 2000
     N = 256
+    T = 0.0001
     '''  
     filename = "M%dN%d/melt_M%d_N%d.data" %(M,N,M,N)
     graph, headers, sections = get_graph(filename, M, N)
@@ -361,16 +362,16 @@ def main():
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.plot_mean_square('b', 'Initial')
     '''
-    filename = "../lammpsinput/data_quenched_M%d_N%d" %(M,N)
+    filename = "../lammpsinput/data_quenched_M%d_N%d_T%g" %(M,N,T)
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.write_sections()
-    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_M%d_N%d.data" %(M, N))
+    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_M%d_N%d_T%g.data" %(M,N,T))
 #    d = data("eq_M%d_N%d.data" %(M, N))
 
     pol_melt.plot_mean_square('r', 'Equilibrated')
-    plt.suptitle('Mean Square Internal Distances M: %d N: %d' %(M, N), fontsize = 20)
+    plt.suptitle('Mean Square Internal Distances M: %d N: %d T: %g' %(M, N, T), fontsize = 20)
     plt.plot(xs,ys, 'g', label='Target function')
     plt.ylabel(r'$<R^2(n)>/n$', fontsize = 16)
     plt.xlabel(r'$n$', fontsize = 16)

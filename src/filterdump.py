@@ -1,5 +1,5 @@
 
-name = "visualize_M2000_N256_r10_cang45.out"
+name = "visualize_M2000_N256_r10_cang60.out"
 #name = "visualizepull_M2000_N256_r10_cang60_t5000000_nve.out"
 #name = "viscomp_M2000_N500.out"
 

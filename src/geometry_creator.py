@@ -442,12 +442,12 @@ class SimulationStructure:
 
 def main():
     d = 2**(1/6)
-    Dx, Dy, Dz = 50, 50, 3  #195, 195, 3
+    Dx, Dy, Dz = 80, 80, 3  #195, 195, 3
     Dz_tip = (2**(1/2)) * d
     radius = 10
     units = 'lj'
     atom_style = 'bond'
-    cone_angle = 75
+    cone_angle = 45
 #    substrate = create_substrate('fcc', '001', d,  Dx, Dy, Dz)
     substrate_unit = StructureUnitParams('substrate', 'substrate', 'fcc', '001', d, 1, 1.0, atom_style,  Dx, Dy, Dz)
     d /= 2
