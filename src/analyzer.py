@@ -41,6 +41,26 @@ class AtomicForces:
         return self.radius == other.radius
 
 
+class ConesimSettings:
+    def __init__(self, M, N, T, r, cang, vz, dt):
+        self.M = M       #number of chains
+        self.N = N       #number of monomers per chain
+        self.T = T       #Temperature of the system
+        self.r = r       #radius of the spherical tip of the cone
+        self.cang = cang #angle that cone makes with substrate plane
+        self.vz = vz     #velocity of the cone
+        self.dt = dt     #timestep of the simulation
+        print("Simulation settings used for analysis")
+        print("M : %d, N: %d, T: %g, r: %g, cang: %g, vz: %g, dt: %g" %(M, N, T, r, cang, vz, dt))
+    def set_analysisvals(self, t_init, t_final, t_step):
+        self.t_init  = t_init  #analysis starts from this dump 
+        self.t_final = t_final #analysis continue until this dump
+        self.t_step  = t_step  #us this much dumps for analysis at single iteration
+        print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
+        
+
+css = ConesimSettings(2000, 256, 0.0001, 10, 45, 0.0001, 0.001)
+css.set_analysisvals(20, 23, 1)
 
 def get_lj_bond_stats(all_res, atype, all_bounds, percent):
     breaks = []
@@ -161,12 +181,14 @@ def add_neighbors(all_pair_ids, all_res, atype):
     N = len(all_pair_ids)
     N1 = len(all_res)
     assert N == N1
+    contact_idx = 1000000
     for i in range(N):
         pair_count = 0
         pair_ids = all_pair_ids[i]
         atomic_forces = all_res[i]
         M = len(atomic_forces[atype])
         for (id1, id2) in pair_ids:
+            if min(id1, id2) <= M and max(id1, id2) > M: contact_idx = min(contact_idx, i)
             if id1 > M or id2 > M: continue
             af1 = atomic_forces[atype][id1-1] ## ASSUMING ATOMS ARE SORTED ACCORDING TO THEIR IDS
             af2 = atomic_forces[atype][id2-1]
@@ -176,6 +198,7 @@ def add_neighbors(all_pair_ids, all_res, atype):
             af2.neighbors.append(af1)
             pair_count += 1
         print("i: %d number of pairs: %d" %(i, pair_count))
+    return contact_idx
 
 def visualize_neighbors(atom_forces, bounds):
     '''Assumption: atom_forces are sorted by id'''
@@ -1016,31 +1039,33 @@ def plot_breaks(ds, bfrac, ffrac, contactd):
 
     
     
-def visualize_lj_bond_stats():
-    M, N = 2000, 256
-    r = 10
-    dt = 0.01
-    cang = 45
+def visualize_lj_bond_stats(css):
+    #M, N = 2000, 256
+    #T = 0.0001
+    #r = 10
+    dt = css.dt
+    #cang = 45
     tip_type = 2
     glass = 1
     types = [glass]
-    rc = 1.5
-    vz = 0.0001
+    #rc = 1.5
+    vz = css.vz
     d0 = 0 #2.2
-    t_init, t_final = 0,  5
-    t_step = 2
+    t_init, t_final = css.t_init, css.t_final
+    t_step = css.t_step
     ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
     ds = []
     percent = 0.2
-    contactd = 2.2
+    contactd = 100000000000
     dir = '../visfiles/'
-    filename = dir + 'visualize_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
-    filenameinteractions = dir + 'pairids_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
+    filename = dir + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    filenameinteractions = dir + 'pairids_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     for t_start in range(t_init, t_final, t_step):
         t_end = t_start + t_step
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
         all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
-        add_neighbors(all_inter, all_res, glass)
+        idx = add_neighbors(all_inter, all_res, glass)
+        contactd = min(contactd, times[idx]*vz*dt)
         changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, all_bounds, percent)
         ccfrac.extend([changes_comp[i]/pair_counts[i]    for i in range(len(changes_comp))] )
         cefrac.extend( [changes_ext[i]/pair_counts[i]    for i in range(len(changes_ext))] )
@@ -1049,19 +1074,22 @@ def visualize_lj_bond_stats():
         ds.extend( [vz*dt*times[i] - d0 for i in range(len(times)-1)] )
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
-    plt.savefig("changes_M%d_N%d_r%d_cang%d.png" %(M, N, r, cang))
+    plt.savefig("changes_M%d_N%d_T%g_r%d_cang%d.png" %(css.M, css.N, css.T, css.r, css.cang))
     plt.close()
     plot_breaks(ds, bfrac, ffrac, contactd)
-    plt.savefig("breaks_M%d_N%d_r%d_cang%d.png" %(M, N, r, cang))
+    plt.savefig("breaks_M%d_N%d_T%g_r%d_cang%d.png" %(css.M, css.N, css.T, css.r, css.cang))
     plt.close()
     
+
+
+
     
 def main():
     #plot_nforce_vs_cont_area()
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
-    visualize_lj_bond_stats()
+    visualize_lj_bond_stats(css)
     return
     M, N = 2000, 256
     r = 10
