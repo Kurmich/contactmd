@@ -59,8 +59,8 @@ class ConesimSettings:
         print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
         
 
-css = ConesimSettings(2000, 256, 0.0001, 10, 45, 0.0001, 0.001)
-css.set_analysisvals(20, 23, 1)
+css = ConesimSettings(2000, 256, 0.0001, 10, 45, 0.0001, 0.01)
+css.set_analysisvals(20, 22, 1)
 
 def get_lj_bond_stats(all_res, atype, all_bounds, percent):
     breaks = []
@@ -97,7 +97,7 @@ def get_lj_bond_stats(all_res, atype, all_bounds, percent):
         formations.append(formed_count/2)
         #plt.show()
         #fig.savefig("t: %d.png" %i)
-        print("i: %d change comp: %g change ext: %d broken: %d formed: %d" %(i, lj_change_count_c, lj_change_count_e, broken_count, formed_count))
+        print("i: %d change comp: %g change ext: %d broken: %d formed: %d" %(i, lj_change_count_c, lj_change_count_e, broken_count, formed_count), flush = True)
     return changes_comp, changes_ext, breaks, formations
 
 
@@ -1021,7 +1021,7 @@ def plot_changes(ds, ccfrac, cefrac, contactd, percent):
     plt.plot(ds, ccfrac, label = "Compressed")
     plt.plot(ds, cefrac, label = "Extended")
     plt.plot(ds, cfrac,  label = "Changed" )
-    plt.axvline(x=contactd)
+    plt.axvline(x=contactd, color = 'red', label = "Contact point: %g" %contactd)
     plt.xlabel("d")
     plt.ylabel("Fraction")
     plt.legend()
@@ -1033,7 +1033,7 @@ def plot_breaks(ds, bfrac, ffrac, contactd):
     plt.plot(ds, ffrac, label = "Formed")
     plt.xlabel("d")
     plt.ylabel("Fraction")
-    plt.axvline(x=contactd)
+    plt.axvline(x=contactd, color = 'red', label = "Contact point: %g" %contactd)
     plt.legend()
     #plt.show()
 
@@ -1065,7 +1065,8 @@ def visualize_lj_bond_stats(css):
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
         all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
         idx = add_neighbors(all_inter, all_res, glass)
-        contactd = min(contactd, times[idx]*vz*dt)
+        if idx < t_final:
+            contactd = min(contactd, times[idx]*vz*dt)
         changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, all_bounds, percent)
         ccfrac.extend([changes_comp[i]/pair_counts[i]    for i in range(len(changes_comp))] )
         cefrac.extend( [changes_ext[i]/pair_counts[i]    for i in range(len(changes_ext))] )
