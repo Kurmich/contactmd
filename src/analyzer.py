@@ -25,12 +25,14 @@ class SimulationSettings:
         self.d = d
     
 class AtomicForces:
-    def __init__(self, a_id, type, x, y, z, fx, fy, fz):
+    def __init__(self, a_id, mol, type, x, y, z, fx, fy, fz):
         self.id = a_id
+        self.mol = mol
+        self.type = type
         self.x, self.y, self.z = x, y, z
         self.fx, self.fy, self.fz = fx, fy, fz
         self.radius = self.get_radius(x, y, 0)
-        self.attributes = {}
+        self.atr = {}
         self.neighbors = [] 
 
     def get_radius(self, x, y, z):
@@ -60,7 +62,7 @@ class ConesimSettings:
         
 
 css = ConesimSettings(2000, 256, 0.0001, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(20, 22, 1)
+css.set_analysisvals(20, 25, 1)
 
 def get_lj_bond_stats(all_res, atype, all_bounds, percent):
     breaks = []
@@ -89,6 +91,10 @@ def get_lj_bond_stats(all_res, atype, all_bounds, percent):
             lj_change_count_e += len(lj_change_ext)
             broken_count    += len(broken) 
             formed_count    += len(formed)
+            af_p.atr['comp'] = len(lj_change_comp)
+            af_p.atr['ext']  = len(lj_change_ext)
+            af_p.atr['broken'] = len(broken)
+            af_p.atr['formed'] = len(formed)
             #for (af1, af2) in lj_change:
                 #ax.plot([af1.x, af2.x], [af1.y, af2.y], [af1.z, af2.z])
         changes_comp.append(lj_change_count_c/2)
@@ -387,7 +393,7 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                     #choose interacting atoms
                     radius = math.sqrt(x**2 + y**2)
                     if atype not in res: res[atype] = []
-                    res[atype].append(AtomicForces(a_id, atype, x, y, z, fx, fy, fz))
+                    res[atype].append(AtomicForces(a_id, mol, atype, x, y, z, fx, fy, fz))
                     max_r = max(max_r, radius)
                     
                     
@@ -1037,7 +1043,31 @@ def plot_breaks(ds, bfrac, ffrac, contactd):
     plt.legend()
     #plt.show()
 
-    
+
+def save_lj_stats(all_res, all_bounds, times, filename):
+    N = len(times)
+    with open(filename, 'a') as f:
+        for i in range(N-1):
+            bounds = all_bounds[i]
+            res = all_res[i]
+            #print time
+            time = times[i]
+            f.write("ITEM: TIMESTEP\n%d\n" %time)
+            #print atom count
+            atom_count = 0
+            for key, val in res.items():
+                atom_count += len(val)
+            f.write("ITEM: NUMBER OF ATOMS\n%d\n" %atom_count)
+            #print bounds
+            f.write("ITEM: BOX BOUNDS pp pp ff\n")
+            for (lo, hi) in bounds:
+                f.write("%e %e\n" %(lo, hi))
+            f.write("ITEM: ATOMS id mol type x y z fx fy fz ext comp chg brk frm\n")
+            for key, atom_forces in res.items():
+                for af in atom_forces:
+                    f.write("%d %d %d %f %f %f %f %f %f " %(af.id, af.mol, af.type, af.x, af.y, af.z, af.fx, af.fy, af.fz))
+                    f.write("%f %f %f %f %f\n" %(af.atr['ext'], af.atr['comp'],af.atr['ext'] + af.atr['comp'], af.atr['broken'], af.atr['formed']))
+            
     
 def visualize_lj_bond_stats(css):
     #M, N = 2000, 256
@@ -1073,6 +1103,7 @@ def visualize_lj_bond_stats(css):
         bfrac.extend( [breaks[i]/pair_counts[i]     for i in range(len(breaks))] )
         ffrac.extend( [formations[i]/pair_counts[i] for i in range(len(formations))] )
         ds.extend( [vz*dt*times[i] - d0 for i in range(len(times)-1)] )
+        save_lj_stats(all_res, all_bounds, times, "testing.txt")
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
     plt.savefig("changes_M%d_N%d_T%g_r%d_cang%d.png" %(css.M, css.N, css.T, css.r, css.cang))
