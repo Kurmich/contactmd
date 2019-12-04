@@ -62,7 +62,7 @@ class ConesimSettings:
         
 
 css = ConesimSettings(2000, 256, 0.0001, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(20, 25, 1)
+css.set_analysisvals(20, 22, 1)
 
 def get_lj_bond_stats(all_res, atype, all_bounds, percent):
     breaks = []
@@ -1106,10 +1106,10 @@ def visualize_lj_bond_stats(css):
         save_lj_stats(all_res, all_bounds, times, "testing.txt")
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
-    plt.savefig("changes_M%d_N%d_T%g_r%d_cang%d.png" %(css.M, css.N, css.T, css.r, css.cang))
+    plt.savefig("changes_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent))
     plt.close()
     plot_breaks(ds, bfrac, ffrac, contactd)
-    plt.savefig("breaks_M%d_N%d_T%g_r%d_cang%d.png" %(css.M, css.N, css.T, css.r, css.cang))
+    plt.savefig("breaks_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang,  100*percent))
     plt.close()
     
 
