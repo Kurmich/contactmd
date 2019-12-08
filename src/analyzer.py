@@ -1103,7 +1103,7 @@ def visualize_lj_bond_stats(css):
         bfrac.extend( [breaks[i]/pair_counts[i]     for i in range(len(breaks))] )
         ffrac.extend( [formations[i]/pair_counts[i] for i in range(len(formations))] )
         ds.extend( [vz*dt*times[i] - d0 for i in range(len(times)-1)] )
-        save_lj_stats(all_res, all_bounds, times, "testing.txt")
+        save_lj_stats(all_res, all_bounds, times, "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent))
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
     plt.savefig("changes_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent))

@@ -451,8 +451,8 @@ def main():
     N = 256
     T = 0.0001
     r = 10
-    cone_ang = 45
-    Dx = 80
+    cone_ang = 60
+    Dx = 50
     sep_z = 2**(1/6) + 0.5
     d = data("../lammpsinput/clean_quenched_M%d_N%d_T%g.data" %(M, N, T))
 #    d2 = data("../lammpsinput/flattip_Dx%d.dat" %(Dx))
