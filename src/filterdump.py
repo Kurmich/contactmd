@@ -1,5 +1,5 @@
 
-name = "visualize_M2000_N256_T0.0001_r10_cang60.out"
+name = "visualize_M2000_N256_T0.2_r10_cang45.out"
 #name = "visualizepull_M2000_N256_r10_cang60_t5000000_nve.out"
 #name = "viscomp_M2000_N500.out"
 
@@ -36,6 +36,18 @@ with open(filename, 'r') as f:
             #if fz < epsilon: words[-1] = "0"
             newline = ' '.join(words) + "\n"
             newfile.write(newline)
+        elif len(words) > 2 and words[1] == "ATOMS":
+            if words[5] != "x":
+                words[5] = "x"
+                words[6] = "y"
+                words[7] = "z"
+                words[8] = "fx"
+                words[9] = "fy"
+                words[10] = "fz"
+                newline = ' '.join(words) + "\n"
+                newfile.write(newline)
+            else:
+                newfile.write(line)
         else:
             newfile.write(line)
             #if not ( RepresentsFloat(words[-1]) and RepresentsFloat(words[-2]) and RepresentsFloat(words[-3])):

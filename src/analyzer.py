@@ -60,10 +60,30 @@ class ConesimSettings:
         self.t_step  = t_step  #us this much dumps for analysis at single iteration
         print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
         
+Temp = 0.2
+css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
+css.set_analysisvals(10, 30, 1)
 
-css = ConesimSettings(2000, 256, 0.0001, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(20, 22, 1)
 
+def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
+    '''If average positions are dumped this method is to reconstruct'''
+    N = len(all_res)
+    rc = 1.5 #cut off radius
+    r_lim = 3.5 #cutoff after which dfs search for new neighbors ends 
+    for i in range(N):
+        atom_forces = all_res[i][atype]
+        new_nbrs = {}
+        for af in atom_forces:
+            seen_ids = []
+            new_nbrs[af.id] = []
+            
+            
+
+def inser_new_nbrs(root_af, child_af, nbrs, seen_ids, rc, r_lim):
+    '''create a new neighbor list for root af such that neighbors are within <= rc'''
+    if af.id in seen_ids:
+        return
+    
 def get_lj_bond_stats(all_res, atype, all_bounds, percent):
     breaks = []
     formations = []
@@ -1085,7 +1105,7 @@ def visualize_lj_bond_stats(css):
     t_step = css.t_step
     ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
     ds = []
-    percent = 0.2
+    percent = 0.3
     contactd = 100000000000
     dir = '../visfiles/'
     filename = dir + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
