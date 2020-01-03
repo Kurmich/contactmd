@@ -60,9 +60,9 @@ class ConesimSettings:
         self.t_step  = t_step  #us this much dumps for analysis at single iteration
         print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
         
-Temp = 0.2
+Temp = 0.0001
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(10, 30, 1)
+css.set_analysisvals(15, 25, 1)
 
 
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
@@ -85,6 +85,7 @@ def inser_new_nbrs(root_af, child_af, nbrs, seen_ids, rc, r_lim):
         return
     
 def get_lj_bond_stats(all_res, atype, all_bounds, percent):
+    '''ASSUMPTION: that all atom_forces are sorted by their IDs'''
     breaks = []
     formations = []
     changes_comp = []
@@ -106,7 +107,7 @@ def get_lj_bond_stats(all_res, atype, all_bounds, percent):
             af = atom_forces[j]
             af_p = atom_forces_p[j]
             assert af.id == af_p.id
-            lj_change_comp, lj_change_ext, broken, formed = get_stats(af_p, af_p.neighbors, af, af.neighbors, bounds_p, bounds, percent)
+            lj_change_comp, lj_change_ext, broken, formed = get_stats(atom_forces, af_p, af_p.neighbors, af, af.neighbors, bounds_p, bounds, percent)
             lj_change_count_c += len(lj_change_comp)
             lj_change_count_e += len(lj_change_ext)
             broken_count    += len(broken) 
@@ -127,7 +128,11 @@ def get_lj_bond_stats(all_res, atype, all_bounds, percent):
     return changes_comp, changes_ext, breaks, formations
 
 
-def get_stats(af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
+def get_stats(atom_forces, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
+    '''bounds - current bounds
+       bounds_p - previous bounds
+       _p stands for previous dump
+    '''
     Lx_p = abs(bounds_p[0][0]) + abs(bounds_p[0][1])
     Ly_p = abs(bounds_p[1][0]) + abs(bounds_p[1][1])
     Lz_p = abs(bounds_p[2][0]) + abs(bounds_p[2][1])
@@ -144,39 +149,56 @@ def get_stats(af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
     for i in range(len(nbr_list)):   cur_ids[nbr_list[i].id] = i 
     for nbr_prev in nbr_list_p:
         nbr_id = nbr_prev.id
+        af_nbr_p = nbr_list_p[prev_ids[nbr_id]]
         if nbr_id in cur_ids:
-            af_nbr_p = nbr_list_p[prev_ids[nbr_id]]
             af_nbr   = nbr_list[cur_ids[nbr_id]]
-            '''ASSUMING NON-PBC in z direction'''
-            dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, Lx_p), get_displ_pbr(af_p.y, af_nbr_p.y, Ly_p), get_displ_pbr(af_p.z, af_nbr_p.z, Lz_p)
-            r_prev = math.sqrt( dx**2 + dy**2 + dz**2 ) 
-            dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, Lx), get_displ_pbr(af.y, af_nbr.y, Ly), get_displ_pbr(af.z, af_nbr.z, Lz)
-            r_cur = math.sqrt( dx**2 + dy**2 + dz**2 )
-            #assert af in af_nbr.neighbors
-            #assert af_p in af_nbr_p.neighbors
-            assert af_nbr_p.id == af_nbr.id
-            assert r_prev < r_cutoff and r_cur < r_cutoff, "Interaction distance is > rc = %g r_prev: %g r_cur: %g" %(r_cutoff, r_prev, r_cur)
-            if abs(r_prev - r_cur) / r_prev > percent and r_cur > r_prev: 
-                lj_change_comp.append((af, af_nbr))
-            elif abs(r_prev - r_cur) / r_prev > percent:
-                lj_change_ext.append((af, af_nbr))
+        else:
+            af_nbr = atom_forces[nbr_id - 1]
+        '''ASSUMING NON-PBC in z direction'''
+        dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, Lx_p), get_displ_pbr(af_p.y, af_nbr_p.y, Ly_p), get_displ_pbr(af_p.z, af_nbr_p.z, Lz_p)
+        r_prev = math.sqrt( dx**2 + dy**2 + dz**2 ) 
+        dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, Lx), get_displ_pbr(af.y, af_nbr.y, Ly), get_displ_pbr(af.z, af_nbr.z, Lz)
+        r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
+        #assert af in af_nbr.neighbors
+        #assert af_p in af_nbr_p.neighbors
+        assert af_nbr_p.id == af_nbr.id
+        #assert r_prev < r_cutoff and r_cur < r_cutoff, "Interaction distance is > rc = %g r_prev: %g r_cur: %g" %(r_cutoff, r_prev, r_cur)
+        assert r_prev < r_cutoff, "Interaction distance is > rc = %g r_prev: %g" %(r_cutoff, r_prev)
+        
+        if abs(r_prev - r_cur) / r_prev > percent and r_cur > r_prev: 
+            lj_change_ext.append((af, af_nbr))
+        elif abs(r_prev - r_cur) / r_prev > percent:
+            lj_change_comp.append((af, af_nbr))
             
+    rbond = 1.2
+    
     broken = []
     for nbr_prev in nbr_list_p:
-        if nbr_prev.id not in cur_ids: broken.append((af_p, nbr_prev))
+        if nbr_prev.id not in cur_ids: 
+            dx, dy, dz = get_displ_pbr(af_p.x, nbr_prev.x, Lx_p), get_displ_pbr(af_p.y, nbr_prev.y, Ly_p), get_displ_pbr(af_p.z, nbr_prev.z, Lz_p)
+            r_prev = math.sqrt( dx**2 + dy**2 + dz**2)
+            if r_prev < rbond:
+                broken.append((af_p, nbr_prev))
     
     formed = []
     for nbr_cur in nbr_list:
-        if nbr_cur.id not in prev_ids: formed.append((af, nbr_cur))
+        if nbr_cur.id not in prev_ids: 
+            dx, dy, dz = get_displ_pbr(af.x, nbr_cur.x, Lx), get_displ_pbr(af.y, nbr_cur.y, Ly), get_displ_pbr(af.z, nbr_cur.z, Lz)
+            r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
+            if r_cur < rbond:
+                formed.append((af, nbr_cur))
         
     return lj_change_comp, lj_change_ext, broken, formed
             
+
+#def get_stat(af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
            
 def is_neighbor(a_id, neighbor_list):
     for nbr in neighbor_list:
         if a_id == nbr.id:
             return True
     return False
+
 def get_separation(af1, af2):
     return math.sqrt((af1.x - af2.x)**2 + (af1.y - af2.y)**2 + (af1.z - af2.z)**2)
 
@@ -1105,7 +1127,7 @@ def visualize_lj_bond_stats(css):
     t_step = css.t_step
     ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
     ds = []
-    percent = 0.3
+    percent = 0.2
     contactd = 100000000000
     dir = '../visfiles/'
     filename = dir + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
