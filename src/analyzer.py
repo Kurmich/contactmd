@@ -67,22 +67,37 @@ css.set_analysisvals(15, 25, 1)
 
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
     '''If average positions are dumped this method is to reconstruct'''
+    Lx = abs(bounds[0][0]) + abs(bounds[0][1])
+    Ly = abs(bounds[1][0]) + abs(bounds[1][1])
+    Lz = abs(bounds[2][0]) + abs(bounds[2][1])
     N = len(all_res)
     rc = 1.5 #cut off radius
-    r_lim = 3.5 #cutoff after which dfs search for new neighbors ends 
+    r_lim = 2*rc + 0.5  #cutoff after which dfs search for new neighbors ends 
     for i in range(N):
         atom_forces = all_res[i][atype]
         new_nbrs = {}
         for af in atom_forces:
             seen_ids = []
             new_nbrs[af.id] = []
+            for child_af in af.neighbors:
+                inser_new_nbrs(af, child_af, new_nbrs[af.id], seen_ids, rc, r_lim, Lx, Ly, Lz)
+        for af in atom_forces:
+            af.neighbors = new_nbrs[af.id]
             
             
 
-def inser_new_nbrs(root_af, child_af, nbrs, seen_ids, rc, r_lim):
+def inser_new_nbrs(root_af, child_af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz):
     '''create a new neighbor list for root af such that neighbors are within <= rc'''
-    if af.id in seen_ids:
-        return
+    if child_af.id in seen_ids: return
+    dx, dy, dz = get_displ_pbr(root_af.x, child_af.x, Lx), get_displ_pbr(root_af.y, child_af.y, Ly), get_displ_pbr(root_af.z, child_af.z, Lz)
+    r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
+    seen_ids.append(child_af.id)
+    if r_cur > r_lim: return
+    if r_cur <= rc:
+        nbrs.append(child_af)
+    for af in child_af.neighbors:
+        inser_new_nbrs(root_af, af, nbrs, seen_ids, rc, r_lim)
+        
     
 def get_lj_bond_stats(all_res, atype, all_bounds, percent):
     '''ASSUMPTION: that all atom_forces are sorted by their IDs'''
