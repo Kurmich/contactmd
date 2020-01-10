@@ -3,6 +3,7 @@ import secrets
 from scipy import stats
 from scipy.spatial import ConvexHull
 from scipy.spatial import KDTree
+import os
 forces = [500.0]
 poisson = 0.5
 G_shear_mod = 16.0
@@ -60,25 +61,28 @@ class ConesimSettings:
         self.t_step  = t_step  #us this much dumps for analysis at single iteration
         print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
         
-Temp = 0.0001
+Temp = 0.2
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(15, 25, 1)
+css.set_analysisvals(5, 50, 5)
 
-
+  
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
     '''If average positions are dumped this method is to reconstruct'''
-    Lx = abs(bounds[0][0]) + abs(bounds[0][1])
-    Ly = abs(bounds[1][0]) + abs(bounds[1][1])
-    Lz = abs(bounds[2][0]) + abs(bounds[2][1])
+
     N = len(all_res)
     rc = 1.5 #cut off radius
     r_lim = 2*rc + 0.5  #cutoff after which dfs search for new neighbors ends 
     for i in range(N):
+        bounds = all_bounds[i]
+        Lx = abs(bounds[0][0]) + abs(bounds[0][1])
+        Ly = abs(bounds[1][0]) + abs(bounds[1][1])
+        Lz = abs(bounds[2][0]) + abs(bounds[2][1])
         atom_forces = all_res[i][atype]
         new_nbrs = {}
         for af in atom_forces:
             seen_ids = []
             new_nbrs[af.id] = []
+            #print("Next atom")
             for child_af in af.neighbors:
                 inser_new_nbrs(af, child_af, new_nbrs[af.id], seen_ids, rc, r_lim, Lx, Ly, Lz)
         for af in atom_forces:
@@ -96,7 +100,7 @@ def inser_new_nbrs(root_af, child_af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz):
     if r_cur <= rc:
         nbrs.append(child_af)
     for af in child_af.neighbors:
-        inser_new_nbrs(root_af, af, nbrs, seen_ids, rc, r_lim)
+        inser_new_nbrs(root_af, af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz )
         
     
 def get_lj_bond_stats(all_res, atype, all_bounds, percent):
@@ -178,7 +182,7 @@ def get_stats(atom_forces, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, per
         #assert af_p in af_nbr_p.neighbors
         assert af_nbr_p.id == af_nbr.id
         #assert r_prev < r_cutoff and r_cur < r_cutoff, "Interaction distance is > rc = %g r_prev: %g r_cur: %g" %(r_cutoff, r_prev, r_cur)
-        assert r_prev < r_cutoff, "Interaction distance is > rc = %g r_prev: %g" %(r_cutoff, r_prev)
+        #assert r_prev < r_cutoff, "Interaction distance is > rc = %g r_prev: %g" %(r_cutoff, r_prev)
         
         if abs(r_prev - r_cur) / r_prev > percent and r_cur > r_prev: 
             lj_change_ext.append((af, af_nbr))
@@ -443,7 +447,11 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                     '''Return a list of the words in the string, using sep as the delimiter string. 
                     If maxsplit is given, at most maxsplit splits are done (thus, the list will have at most maxsplit+1 elements). 
                     If maxsplit is not specified or -1, then there is no limit on the number of splits (all possible splits are made).'''
-                    a_id, mol, atype, x, y, z, fx, fy, fz, arributes  = line.split(' ', 9)
+                    words = line.split(' ', 9)
+                    if len(words) > 9:
+                        a_id, mol, atype, x, y, z, fx, fy, fz, arributes  = words
+                    else:
+                        a_id, mol, atype, x, y, z, fx, fy, fz  = words
                     a_id, mol, atype, x, y, z, fx, fy, fz = int(a_id), int(mol), int(atype), float(x), float(y), float(z), float(fx), float(fy), float(fz)
                     if atype not in types: continue
                     if interacting and abs(fx) < epsilon and abs(fy) < epsilon and abs(fz) < epsilon: continue
@@ -1135,6 +1143,7 @@ def visualize_lj_bond_stats(css):
     tip_type = 2
     glass = 1
     types = [glass]
+    atype = glass
     #rc = 1.5
     vz = css.vz
     d0 = 0 #2.2
@@ -1142,16 +1151,23 @@ def visualize_lj_bond_stats(css):
     t_step = css.t_step
     ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
     ds = []
-    percent = 0.2
+    percent = 0.3
     contactd = 100000000000
     dir = '../visfiles/'
     filename = dir + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     filenameinteractions = dir + 'pairids_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    changes_filename = "changes_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent)
+    breaks_filename = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang,  100*percent)
+    #remove files if they already exist
+    remove_file(changes_filename)
+    remove_file(breaks_filename)
     for t_start in range(t_init, t_final, t_step):
         t_end = t_start + t_step
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
         all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
         idx = add_neighbors(all_inter, all_res, glass)
+        #if css.T > 0.01:
+        #    reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent)
         if idx < t_final:
             contactd = min(contactd, times[idx]*vz*dt)
         changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, all_bounds, percent)
@@ -1163,22 +1179,76 @@ def visualize_lj_bond_stats(css):
         save_lj_stats(all_res, all_bounds, times, "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent))
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
-    plt.savefig("changes_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent))
+    plt.savefig(changes_filename)
     plt.close()
     plot_breaks(ds, bfrac, ffrac, contactd)
-    plt.savefig("breaks_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang,  100*percent))
+    plt.savefig(breaks_filename)
     plt.close()
     
 
 
-
+def visualize_particles(css):
+    dt = css.dt
+    #cang = 45
+    tip_type = 2
+    glass = 1
+    types = [glass]
+    atype = glass
+    #rc = 1.5
+    vz = css.vz
+    d0 = 0 #2.2
+    t_init, t_final = css.t_init, css.t_final
+    t_step = css.t_step
+    dir = '../visfiles/'
+    filename = dir + 'particles_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    ts = []
+    pos_dict = {}
+    labels = ['x', 'y', 'z', 'r' ]
+    for t_start in range(t_init, t_final, t_step):
+        t_end = t_start + t_step
+        all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
+        ts.extend(times[:-1])
+        for i in range(t_step):            
+            atom_forces = all_res[i][atype]
+            if not pos_dict:
+                for af in atom_forces:
+                    pos_dict[af.id] = [ [], [], [], [] ]
+            for af in atom_forces:
+                pos_dict[af.id][0].append(af.x)
+                pos_dict[af.id][1].append(af.y)
+                pos_dict[af.id][2].append(af.z)
+                pos_dict[af.id][3].append(math.sqrt(af.x**2 + af.y**2 + af.z**2))
+                
+    for key, val in pos_dict.items():
+        for i in range(len(labels)):
+            fig = plt.figure()
+            plt.title("Positions of atom %d vs timestep" %(key))
+            plt.plot(ts, val[i], label = labels[i])
+            plt.xlabel("t")
+            plt.ylabel(labels[i])
+            plt.legend()
+            plt.savefig("positions_%d_%s.png" %(key, labels[i]))
+            plt.close()
+        ##plt.plot(ts, val[1], label = "y")
+        #plt.plot(ts, val[2], label = "z" )
+        #plt.plot(ts, val[3], label = "r" )
+       
+    
+                
+            
+def remove_file(filename):
+    try:
+        os.remove(filename)
+    except OSError:
+        pass
     
 def main():
     #plot_nforce_vs_cont_area()
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
-    visualize_lj_bond_stats(css)
+    visualize_particles(css)
+    #visualize_lj_bond_stats(css)
     return
     M, N = 2000, 256
     r = 10
