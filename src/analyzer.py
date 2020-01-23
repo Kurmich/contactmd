@@ -61,9 +61,9 @@ class ConesimSettings:
         self.t_step  = t_step  #us this much dumps for analysis at single iteration
         print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
         
-Temp = 0.2
+Temp = 0.0001
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(5, 50, 5)
+css.set_analysisvals(15, 25, 1)
 
   
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
@@ -147,6 +147,23 @@ def get_lj_bond_stats(all_res, atype, all_bounds, percent):
     return changes_comp, changes_ext, breaks, formations
 
 
+
+def maxchange_criteria(r_prev, r_cur, delta_r):
+    if abs(r_prev - r_cur) > delta_r:
+        if r_cur > r_prev:
+            return 1
+        else:
+            return -1
+    return 0
+
+
+def fracchange_criteria(r_prev, r_cur, percent):
+    if abs(r_prev - r_cur) / r_prev > percent and r_cur > r_prev: 
+            return 1
+    elif abs(r_prev - r_cur) / r_prev > percent:
+            return -1
+    return 0
+
 def get_stats(atom_forces, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
     '''bounds - current bounds
        bounds_p - previous bounds
@@ -160,6 +177,7 @@ def get_stats(atom_forces, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, per
     Ly = abs(bounds[1][0]) + abs(bounds[1][1])
     Lz = abs(bounds[2][0]) + abs(bounds[2][1])
     r_cutoff = 1.501 
+    delta_r = 0.3
     lj_change_comp = []
     lj_change_ext = []
     prev_ids = {}
@@ -183,10 +201,10 @@ def get_stats(atom_forces, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, per
         assert af_nbr_p.id == af_nbr.id
         #assert r_prev < r_cutoff and r_cur < r_cutoff, "Interaction distance is > rc = %g r_prev: %g r_cur: %g" %(r_cutoff, r_prev, r_cur)
         #assert r_prev < r_cutoff, "Interaction distance is > rc = %g r_prev: %g" %(r_cutoff, r_prev)
-        
-        if abs(r_prev - r_cur) / r_prev > percent and r_cur > r_prev: 
+        flag = maxchange_criteria(r_prev, r_cur, delta_r)
+        if flag == 1: 
             lj_change_ext.append((af, af_nbr))
-        elif abs(r_prev - r_cur) / r_prev > percent:
+        elif flag == -1:
             lj_change_comp.append((af, af_nbr))
             
     rbond = 1.2
@@ -1151,7 +1169,7 @@ def visualize_lj_bond_stats(css):
     t_step = css.t_step
     ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
     ds = []
-    percent = 0.3
+    percent = 0.2
     contactd = 100000000000
     dir = '../visfiles/'
     filename = dir + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
@@ -1247,8 +1265,8 @@ def main():
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
-    visualize_particles(css)
-    #visualize_lj_bond_stats(css)
+    #visualize_particles(css)
+    visualize_lj_bond_stats(css)
     return
     M, N = 2000, 256
     r = 10

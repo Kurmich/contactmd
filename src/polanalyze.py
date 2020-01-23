@@ -354,7 +354,7 @@ def main():
 #    return
     M = 2000
     N = 256
-    T = 0.2
+    T = 0.0001
     '''  
     filename = "M%dN%d/melt_M%d_N%d.data" %(M,N,M,N)
     graph, headers, sections = get_graph(filename, M, N)
@@ -362,12 +362,12 @@ def main():
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.plot_mean_square('b', 'Initial')
     '''
-    filename = "../lammpsinput/data_quenched_M%d_N%d_T%g_wNVE" %(M,N,T)
+    filename = "../lammpsinput/data_quenched_M%d_N%d_T%g" %(M,N,T)
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.write_sections()
-    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_M%d_N%d_T%g.data" %(M,N,T))
+    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_M%d_N%d_T%g_smooth.data" %(M,N,T))
 #    d = data("eq_M%d_N%d.data" %(M, N))
 
     pol_melt.plot_mean_square('r', 'Equilibrated')

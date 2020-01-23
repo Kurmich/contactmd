@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 import math
 
-M, N = 2000, 500
-filename = "../visfiles/deform_M%d_N%d.txt" %(M, N)
+M, N = 2000, 256
+T = 0.2
+R, cang = 10, 45
+filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
 
 params = {}
 params[(1000,256)] = [72.1, 72.1, 52.8]
@@ -16,6 +18,43 @@ Lz = params[(M,N)][2] - 10
 Lx, Ly = params[(M,N)][0], params[(M,N)][1]
 
 
+def motion_stats(filename):
+    N = 100000
+    max_time = 1400
+    with open(filename, 'r') as file:
+        for line in file:
+            words = line.strip().split()
+            if len(words) == 0: continue
+            if words[0] == "Step":
+                N = len(words)
+                keywords = words
+                times, x2s, x2s_ave, vacfs  = [], [], [], []
+            if N == len(words) and words[0].isdigit():
+                time = int(words[0])
+                if time > max_time: break
+                times.append(time)
+                x2s_ave.append(float(words[-1]))
+                x2s.append(float(words[-2]))
+                vacfs.append(float(words[-3]))
+    t0 = times[0]
+    newtimes = [t - t0 for t in times]
+    plt.plot(newtimes, x2s, label = "x^2")
+    plt.plot(newtimes, x2s_ave, label = "xave^2")
+    plt.xlabel("t")
+    plt.ylabel("$<x^2>$")
+    plt.legend()
+    plt.show()
+    
+def main():
+    M, N = 2000, 256
+    T = 0.2
+    R, cang = 10, 45
+    filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
+    motion_stats(filename)
+    
+if __name__ == "__main__":
+    main()
+'''
 displ = []
 fzs   = []
 fys = []
@@ -40,7 +79,7 @@ with open(filename, 'r') as file:
         print(len(arr))
         displ.append(strainz)
         fzs.append(pzz)
-        '''
+        ''''''
         print(line)
         print(len(arr))
         if len(arr) != 14 or not arr[0].isdigit(): continue
@@ -61,8 +100,12 @@ with open(filename, 'r') as file:
         fxs.append(fx / (Lz_cur * Ly_cur))
         fys.append(fy / (Lz_cur * Lx_cur))
         '''
-
+'''
 plt.plot(displ, fzs)
 #plt.plot(displ, fys)
 #plt.plot(displ, fxs)
 plt.show()
+
+'''
+
+
