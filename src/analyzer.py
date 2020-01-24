@@ -63,7 +63,7 @@ class ConesimSettings:
         
 Temp = 0.0001
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(15, 25, 1)
+css.set_analysisvals(15, 30, 1)
 
   
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
@@ -126,7 +126,7 @@ def get_lj_bond_stats(all_res, atype, all_bounds, percent):
             af = atom_forces[j]
             af_p = atom_forces_p[j]
             assert af.id == af_p.id
-            lj_change_comp, lj_change_ext, broken, formed = get_stats(atom_forces, af_p, af_p.neighbors, af, af.neighbors, bounds_p, bounds, percent)
+            lj_change_comp, lj_change_ext, broken, formed = get_stats(atom_forces, atom_forces_p, af_p, af_p.neighbors, af, af.neighbors, bounds_p, bounds, percent)
             lj_change_count_c += len(lj_change_comp)
             lj_change_count_e += len(lj_change_ext)
             broken_count    += len(broken) 
@@ -164,7 +164,7 @@ def fracchange_criteria(r_prev, r_cur, percent):
             return -1
     return 0
 
-def get_stats(atom_forces, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
+def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
     '''bounds - current bounds
        bounds_p - previous bounds
        _p stands for previous dump
@@ -185,12 +185,14 @@ def get_stats(atom_forces, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, per
     for i in range(len(nbr_list_p)): prev_ids[nbr_list_p[i].id] = i 
     for i in range(len(nbr_list)):   cur_ids[nbr_list[i].id] = i 
     for nbr_prev in nbr_list_p:
+        #for each neighbor in neighbor list of previous timestep
         nbr_id = nbr_prev.id
         af_nbr_p = nbr_list_p[prev_ids[nbr_id]]
+        
         if nbr_id in cur_ids:
-            af_nbr   = nbr_list[cur_ids[nbr_id]]
+            af_nbr   = nbr_list[cur_ids[nbr_id]] #if the nbr_prev is still a neighbor
         else:
-            af_nbr = atom_forces[nbr_id - 1]
+            af_nbr = atom_forces[nbr_id - 1]     #if it isn't neighbor anymore
         '''ASSUMING NON-PBC in z direction'''
         dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, Lx_p), get_displ_pbr(af_p.y, af_nbr_p.y, Ly_p), get_displ_pbr(af_p.z, af_nbr_p.z, Lz_p)
         r_prev = math.sqrt( dx**2 + dy**2 + dz**2 ) 
@@ -224,6 +226,19 @@ def get_stats(atom_forces, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, per
             r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
             if r_cur < rbond:
                 formed.append((af, nbr_cur))
+            nbr_id = nbr_cur.id
+            af_nbr_p = atom_forces_p[nbr_id - 1] 
+            assert af_nbr_p.id == nbr_cur.id
+            af_nbr = nbr_cur
+            dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, Lx_p), get_displ_pbr(af_p.y, af_nbr_p.y, Ly_p), get_displ_pbr(af_p.z, af_nbr_p.z, Lz_p)
+            r_prev = math.sqrt( dx**2 + dy**2 + dz**2 ) 
+            dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, Lx), get_displ_pbr(af.y, af_nbr.y, Ly), get_displ_pbr(af.z, af_nbr.z, Lz)
+            r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
+            flag = maxchange_criteria(r_prev, r_cur, delta_r)
+            if flag == 1: 
+                lj_change_ext.append((af, af_nbr))
+            elif flag == -1:
+                lj_change_comp.append((af, af_nbr))
         
     return lj_change_comp, lj_change_ext, broken, formed
             
