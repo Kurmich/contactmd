@@ -2,9 +2,10 @@ import matplotlib.pyplot as plt
 import math
 
 M, N = 2000, 256
-T = 0.2
+T = 0.0001
 R, cang = 10, 45
 filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
+filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(M, N, T, R, cang)
 
 params = {}
 params[(1000,256)] = [72.1, 72.1, 52.8]
@@ -18,9 +19,61 @@ Lz = params[(M,N)][2] - 10
 Lx, Ly = params[(M,N)][0], params[(M,N)][1]
 
 
+
+
+def heat_stats(filename):
+    N = 100000
+    max_time = 1000000000000
+    dt = 0.01
+    vz = 0.0001
+    times, fzs, fys, pes  = [], [], [], []
+    del_N = 20000
+    with open(filename, 'r') as file:
+        for line in file:
+            words = line.strip().split()
+            if len(words) == 0: continue
+            if words[0] == "Step":
+                N = len(words)
+                keywords = words
+                print(line)
+            if N == len(words) and words[0].isdigit():
+                time = int(words[0])
+                if time > max_time: break
+                times.append(time)
+                fzs.append(float(words[-1]))
+                fys.append(float(words[-2]))
+                pes.append(float(words[-4]))
+    print(N, len(times), times[-1], times[0])
+    t0 = times[0]
+    del_t = times[1] - times[0]
+    heat = [ fzs[i]-fzs[i-1] for i in range(1, len(fzs))]
+    dws  = [fzs[i] * vz *dt * del_t   for i in range(0, len(fzs))]
+    cum_works = []
+    cum_work = 0
+    for dw in dws:
+        cum_work += dw
+        cum_works.append(cum_work)
+    ds, qs = [], []
+    us, ws = [], []
+    print(len(cum_works))
+    for i in range(del_N, len(cum_works), del_N):
+        ds.append(times[i] * vz * dt)
+        qs.append( (pes[i] - pes[i-N]) -  (cum_works[i] - cum_works[i-N]))
+        us.append(pes[i] - pes[i-N])
+        ws.append((cum_works[i] - cum_works[i-N]))
+    newtimes = [t - t0 for t in times]
+    plt.plot(ds, qs, label = "Q")
+    plt.plot(ds, us, label = "$\Delta U$")
+    plt.plot(ds, ws, label = "W")
+    plt.xlabel("d")
+    plt.ylabel("$Q, W, \Delta U$")
+    plt.legend()
+    plt.show() 
+
+
 def motion_stats(filename):
     N = 100000
-    max_time = 1400
+    max_time = 14000000000
     with open(filename, 'r') as file:
         for line in file:
             words = line.strip().split()
@@ -29,6 +82,7 @@ def motion_stats(filename):
                 N = len(words)
                 keywords = words
                 times, x2s, x2s_ave, vacfs  = [], [], [], []
+                print(line)
             if N == len(words) and words[0].isdigit():
                 time = int(words[0])
                 if time > max_time: break
@@ -38,8 +92,13 @@ def motion_stats(filename):
                 vacfs.append(float(words[-3]))
     t0 = times[0]
     newtimes = [t - t0 for t in times]
-    plt.plot(newtimes, x2s, label = "x^2")
-    plt.plot(newtimes, x2s_ave, label = "xave^2")
+    tt = [math.log10(t + 0.1) for t in newtimes]
+    x2s_log = [math.log10(x2s[i]/2 +0.0001)  - 0 * tt[i] for i in range(len(x2s))]
+    x2save_log = [math.log10(x2ave+ 0.0001) for x2ave in x2s_ave]
+    #plt.plot(newtimes, x2s, label = "x^2")
+    #plt.plot(newtimes, x2s_ave, label = "xave^2")
+    plt.plot(tt, x2s_log, label = "x^2")
+    plt.plot(tt, x2save_log, label = "xave^2")
     plt.xlabel("t")
     plt.ylabel("$<x^2>$")
     plt.legend()
@@ -47,10 +106,12 @@ def motion_stats(filename):
     
 def main():
     M, N = 2000, 256
-    T = 0.2
+    T = 0.0001
     R, cang = 10, 45
-    filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
-    motion_stats(filename)
+    #filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
+    filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(M, N, T, R, cang)
+    heat_stats(filename)
+    #motion_stats(filename)
     
 if __name__ == "__main__":
     main()

@@ -13,7 +13,7 @@ sigma = 1.0 #2**(1/6)
 d = 2.0**(1.0/6.0) * sigma
 atom_N = [1, 2, 3, 4]
 epsilon = 0.000001
-
+vis_data_path = '../visfiles/'
 #idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
 
 
@@ -187,8 +187,8 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
     for nbr_prev in nbr_list_p:
         #for each neighbor in neighbor list of previous timestep
         nbr_id = nbr_prev.id
-        af_nbr_p = nbr_list_p[prev_ids[nbr_id]]
-        
+        #af_nbr_p = nbr_list_p[prev_ids[nbr_id]]
+        af_nbr_p = nbr_prev
         if nbr_id in cur_ids:
             af_nbr   = nbr_list[cur_ids[nbr_id]] #if the nbr_prev is still a neighbor
         else:
@@ -236,6 +236,7 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
             r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
             flag = maxchange_criteria(r_prev, r_cur, delta_r)
             if flag == 1: 
+                print("Error bond can't be extended")
                 lj_change_ext.append((af, af_nbr))
             elif flag == -1:
                 lj_change_comp.append((af, af_nbr))
@@ -1186,9 +1187,8 @@ def visualize_lj_bond_stats(css):
     ds = []
     percent = 0.2
     contactd = 100000000000
-    dir = '../visfiles/'
-    filename = dir + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
-    filenameinteractions = dir + 'pairids_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    filename = vis_data_path + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    filenameinteractions = vis_data_path + 'pairids_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     changes_filename = "changes_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent)
     breaks_filename = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang,  100*percent)
     #remove files if they already exist
@@ -1232,8 +1232,7 @@ def visualize_particles(css):
     d0 = 0 #2.2
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
-    dir = '../visfiles/'
-    filename = dir + 'particles_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    filename = vis_data_path + 'particles_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     ts = []
     pos_dict = {}
     labels = ['x', 'y', 'z', 'r' ]
