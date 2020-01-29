@@ -4,6 +4,7 @@ from scipy import stats
 from scipy.spatial import ConvexHull
 from scipy.spatial import KDTree
 import os
+from thermoparser import heat_stats
 forces = [500.0]
 poisson = 0.5
 G_shear_mod = 16.0
@@ -14,6 +15,7 @@ d = 2.0**(1.0/6.0) * sigma
 atom_N = [1, 2, 3, 4]
 epsilon = 0.000001
 vis_data_path = '../visfiles/'
+out_data_path = '../visfiles/'
 #idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
 
 
@@ -63,7 +65,7 @@ class ConesimSettings:
         
 Temp = 0.0001
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(15, 30, 1)
+css.set_analysisvals(20, 22, 1)
 
   
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
@@ -1180,7 +1182,7 @@ def visualize_lj_bond_stats(css):
     atype = glass
     #rc = 1.5
     vz = css.vz
-    d0 = 0 #2.2
+    d0 = 0 #2.2 
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
     ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
@@ -1189,6 +1191,7 @@ def visualize_lj_bond_stats(css):
     contactd = 100000000000
     filename = vis_data_path + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     filenameinteractions = vis_data_path + 'pairids_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    filename_heat = out_data_path + "conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(css.M, css.N, css.T, css.r, css.cang)
     changes_filename = "changes_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent)
     breaks_filename = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang,  100*percent)
     #remove files if they already exist
@@ -1212,6 +1215,8 @@ def visualize_lj_bond_stats(css):
         save_lj_stats(all_res, all_bounds, times, "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent))
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
+    scale = 0.0000416
+    heat_stats(filename_heat, scale)
     plt.savefig(changes_filename)
     plt.close()
     plot_breaks(ds, bfrac, ffrac, contactd)
