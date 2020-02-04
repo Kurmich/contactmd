@@ -27,7 +27,7 @@ def heat_stats(filename, scale):
     dt = 0.01
     vz = 0.0001
     times, fzs, fys, pes  = [], [], [], []
-    del_N = 20000
+    del_N = 40000
     with open(filename, 'r') as file:
         for line in file:
             words = line.strip().split()
@@ -111,7 +111,7 @@ def main():
     M, N = 2000, 256
     T = 0.0001
     R, cang = 10, 45
-    #filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
+    #filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
     #motion_stats(filename)
     filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(M, N, T, R, cang)
     heat_stats(filename, 1)

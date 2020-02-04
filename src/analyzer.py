@@ -65,7 +65,7 @@ class ConesimSettings:
         
 Temp = 0.0001
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(20, 22, 1)
+css.set_analysisvals(15, 20, 2)
 
   
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
@@ -105,36 +105,37 @@ def inser_new_nbrs(root_af, child_af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz):
         inser_new_nbrs(root_af, af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz )
         
     
-def get_lj_bond_stats(all_res, atype, all_bounds, percent):
+def get_lj_bond_stats(all_res, atype, all_bounds, percent, step):
     '''ASSUMPTION: that all atom_forces are sorted by their IDs'''
     breaks = []
     formations = []
     changes_comp = []
     changes_ext = []
     N = len(all_res)
-    for i in range(1, N):
+    assert N >= step
+    for i in range(step, N):
         lj_change_count_c = 0
         lj_change_count_e = 0
-        broken_count    = 0 
-        formed_count    = 0
-        atom_forces = all_res[i][atype]
-        atom_forces_p = all_res[i-1][atype]
-        bounds = all_bounds[i]
-        bounds_p = all_bounds[i-1]
-        M = len(atom_forces)
+        broken_count      = 0 
+        formed_count      = 0
+        atom_forces       = all_res[i][atype]
+        atom_forces_p     = all_res[i-step][atype]
+        bounds            = all_bounds[i]
+        bounds_p          = all_bounds[i-step]
+        M                 = len(atom_forces)
         #fig = plt.figure()
         #ax = Axes3D(fig)
         for j in range(M):
-            af = atom_forces[j]
+            af   = atom_forces[j]
             af_p = atom_forces_p[j]
             assert af.id == af_p.id
             lj_change_comp, lj_change_ext, broken, formed = get_stats(atom_forces, atom_forces_p, af_p, af_p.neighbors, af, af.neighbors, bounds_p, bounds, percent)
-            lj_change_count_c += len(lj_change_comp)
-            lj_change_count_e += len(lj_change_ext)
-            broken_count    += len(broken) 
-            formed_count    += len(formed)
-            af_p.atr['comp'] = len(lj_change_comp)
-            af_p.atr['ext']  = len(lj_change_ext)
+            lj_change_count_c  += len(lj_change_comp)
+            lj_change_count_e  += len(lj_change_ext)
+            broken_count       += len(broken) 
+            formed_count       += len(formed)
+            af_p.atr['comp']   = len(lj_change_comp)
+            af_p.atr['ext']    = len(lj_change_ext)
             af_p.atr['broken'] = len(broken)
             af_p.atr['formed'] = len(formed)
             #for (af1, af2) in lj_change:
@@ -1145,10 +1146,10 @@ def plot_breaks(ds, bfrac, ffrac, contactd):
     #plt.show()
 
 
-def save_lj_stats(all_res, all_bounds, times, filename):
+def save_lj_stats(all_res, all_bounds, times, filename, step):
     N = len(times)
     with open(filename, 'a') as f:
-        for i in range(N-1):
+        for i in range(N-step):
             bounds = all_bounds[i]
             res = all_res[i]
             #print time
@@ -1185,6 +1186,7 @@ def visualize_lj_bond_stats(css):
     d0 = 0 #2.2 
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
+    step = 2 #step for calculations
     ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
     ds = []
     percent = 0.2
@@ -1198,7 +1200,7 @@ def visualize_lj_bond_stats(css):
     remove_file(changes_filename)
     remove_file(breaks_filename)
     for t_start in range(t_init, t_final, t_step):
-        t_end = t_start + t_step
+        t_end = t_start + t_step + step - 1
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
         all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
         idx = add_neighbors(all_inter, all_res, glass)
@@ -1206,17 +1208,18 @@ def visualize_lj_bond_stats(css):
         #    reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent)
         if idx < t_final:
             contactd = min(contactd, times[idx]*vz*dt)
-        changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, all_bounds, percent)
-        ccfrac.extend([changes_comp[i]/pair_counts[i]    for i in range(len(changes_comp))] )
-        cefrac.extend( [changes_ext[i]/pair_counts[i]    for i in range(len(changes_ext))] )
-        bfrac.extend( [breaks[i]/pair_counts[i]     for i in range(len(breaks))] )
-        ffrac.extend( [formations[i]/pair_counts[i] for i in range(len(formations))] )
-        ds.extend( [vz*dt*times[i] - d0 for i in range(len(times)-1)] )
-        save_lj_stats(all_res, all_bounds, times, "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent))
+        changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, all_bounds, percent, step)
+        ccfrac.extend( [changes_comp[i]/pair_counts[i]    for i in range(len(changes_comp))] )
+        cefrac.extend( [changes_ext[i]/pair_counts[i]     for i in range(len(changes_ext))] )
+        bfrac.extend(  [breaks[i]/pair_counts[i]          for i in range(len(breaks))] )
+        ffrac.extend(  [formations[i]/pair_counts[i]      for i in range(len(formations))] )
+        ds.extend(     [vz*dt*times[i] - d0               for i in range(len(times)-1)] )
+        save_lj_stats(all_res, all_bounds, times, "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent), step)
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
-    scale = 0.0000416
-    heat_stats(filename_heat, scale)
+    if css.T < 0.01:
+        scale = 0.000416
+        heat_stats(filename_heat, scale)
     plt.savefig(changes_filename)
     plt.close()
     plot_breaks(ds, bfrac, ffrac, contactd)
