@@ -27,7 +27,7 @@ def heat_stats(filename, scale):
     dt = 0.01
     vz = 0.0001
     times, fzs, fys, pes  = [], [], [], []
-    del_N = 40000
+    del_N = 20000
     with open(filename, 'r') as file:
         for line in file:
             words = line.strip().split()
@@ -56,14 +56,14 @@ def heat_stats(filename, scale):
     ds, qs = [], []
     us, ws = [], []
     print(len(cum_works))
-    for i in range(del_N, len(cum_works), del_N):
-        ds.append(times[i] * vz * dt)
-        qs.append( -scale * ((pes[i] - pes[i-N]) -  (cum_works[i] - cum_works[i-N])) )
-        us.append( -scale * (pes[i] - pes[i-N]) )
-        ws.append(scale*(cum_works[i] - cum_works[i-N]))
+    for i in range(2*del_N, len(cum_works), del_N):
+        ds.append(times[i-del_N] * vz * dt)
+        qs.append( -scale * ((pes[i] - pes[i-del_N]) -  (cum_works[i] - cum_works[i-del_N])) )
+        us.append( scale * (pes[i] - pes[i-del_N]) )
+        ws.append(scale*(cum_works[i] - cum_works[i-del_N]))
     newtimes = [t - t0 for t in times]
     plt.plot(ds, qs, label = "-Q", color = 'black')
-    #plt.plot(ds, us, label = "-$\Delta U$")
+    #plt.plot(ds, us, label = "$\Delta U$")
     #plt.plot(ds, ws, label = "W")
     plt.xlabel("d")
     plt.ylabel("$-Q, Frac$")
@@ -114,7 +114,7 @@ def main():
     #filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
     #motion_stats(filename)
     filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(M, N, T, R, cang)
-    heat_stats(filename, 1)
+    heat_stats(filename, 0.00000416)
     
     
 if __name__ == "__main__":

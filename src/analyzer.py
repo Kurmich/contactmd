@@ -1186,7 +1186,7 @@ def visualize_lj_bond_stats(css):
     d0 = 0 #2.2 
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
-    step = 2 #step for calculations
+    step = 1 #step for calculations
     ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
     ds = []
     percent = 0.2
@@ -1213,12 +1213,12 @@ def visualize_lj_bond_stats(css):
         cefrac.extend( [changes_ext[i]/pair_counts[i]     for i in range(len(changes_ext))] )
         bfrac.extend(  [breaks[i]/pair_counts[i]          for i in range(len(breaks))] )
         ffrac.extend(  [formations[i]/pair_counts[i]      for i in range(len(formations))] )
-        ds.extend(     [vz*dt*times[i] - d0               for i in range(len(times)-1)] )
+        ds.extend(     [vz*dt*times[i] - d0               for i in range(len(times)-step)] )
         save_lj_stats(all_res, all_bounds, times, "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent), step)
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
     if css.T < 0.01:
-        scale = 0.000416
+        scale = 0.00000416
         heat_stats(filename_heat, scale)
     plt.savefig(changes_filename)
     plt.close()
