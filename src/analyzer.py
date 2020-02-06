@@ -1217,8 +1217,15 @@ def visualize_lj_bond_stats(css):
         save_lj_stats(all_res, all_bounds, times, "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent), step)
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
+    #Write rate of rearragements to a file
+    deld = ds[step] - ds[0]
+    rate = [(ccfrac[i] + cefrac[i])/deld for i in range(len(ccfrac))]
+    with open("rate_T%g_deld%g.txt" %(css.T, deld), 'w') as f:
+        for item in rate:
+            f.write("%s\n" %item)
+    
     if css.T < 0.01:
-        scale = 0.00000416
+        scale =  0.8214 * 0.00000416
         heat_stats(filename_heat, scale)
     plt.savefig(changes_filename)
     plt.close()

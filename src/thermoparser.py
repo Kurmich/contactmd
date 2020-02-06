@@ -63,8 +63,8 @@ def heat_stats(filename, scale):
         ws.append(scale*(cum_works[i] - cum_works[i-del_N]))
     newtimes = [t - t0 for t in times]
     plt.plot(ds, qs, label = "-Q", color = 'black')
-    #plt.plot(ds, us, label = "$\Delta U$")
-    #plt.plot(ds, ws, label = "W")
+    plt.plot(ds, us, label = "$\Delta U$")
+    plt.plot(ds, ws, label = "W")
     plt.xlabel("d")
     plt.ylabel("$-Q, Frac$")
     #plt.ylabel("$Q, W, \Delta U$")
@@ -114,7 +114,7 @@ def main():
     #filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
     #motion_stats(filename)
     filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(M, N, T, R, cang)
-    heat_stats(filename, 0.00000416)
+    heat_stats(filename, 0.8214 * 0.00000416)
     
     
 if __name__ == "__main__":
