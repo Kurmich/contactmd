@@ -5,6 +5,7 @@ from scipy.spatial import ConvexHull
 from scipy.spatial import KDTree
 import os
 from thermoparser import heat_stats
+from boxcell import Boundary
 forces = [500.0]
 poisson = 0.5
 G_shear_mod = 16.0
@@ -19,6 +20,8 @@ out_data_path = '../visfiles/'
 #idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
 
 
+
+
 class SimulationSettings:
     def __init__(self, force, poisson, G_shear_mod, R, sigma, d):
         self.force = force
@@ -27,7 +30,7 @@ class SimulationSettings:
         self.R = R
         self.d = d
     
-class AtomicForces:
+'''class AtomicForces:
     def __init__(self, a_id, mol, type, x, y, z, fx, fy, fz):
         self.id = a_id
         self.mol = mol
@@ -43,7 +46,7 @@ class AtomicForces:
     def __lt__(self, other):
         return self.radius < other.radius
     def __eq__(self, other):
-        return self.radius == other.radius
+        return self.radius == other.radius'''
 
 
 class ConesimSettings:
@@ -76,9 +79,6 @@ def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
     r_lim = 2*rc + 0.5  #cutoff after which dfs search for new neighbors ends 
     for i in range(N):
         bounds = all_bounds[i]
-        Lx = abs(bounds[0][0]) + abs(bounds[0][1])
-        Ly = abs(bounds[1][0]) + abs(bounds[1][1])
-        Lz = abs(bounds[2][0]) + abs(bounds[2][1])
         atom_forces = all_res[i][atype]
         new_nbrs = {}
         for af in atom_forces:
@@ -86,7 +86,7 @@ def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
             new_nbrs[af.id] = []
             #print("Next atom")
             for child_af in af.neighbors:
-                inser_new_nbrs(af, child_af, new_nbrs[af.id], seen_ids, rc, r_lim, Lx, Ly, Lz)
+                inser_new_nbrs(af, child_af, new_nbrs[af.id], seen_ids, rc, r_lim, bounds.Lx, bounds.Ly, bounds.Lz)
         for af in atom_forces:
             af.neighbors = new_nbrs[af.id]
             
@@ -172,13 +172,7 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
        bounds_p - previous bounds
        _p stands for previous dump
     '''
-    Lx_p = abs(bounds_p[0][0]) + abs(bounds_p[0][1])
-    Ly_p = abs(bounds_p[1][0]) + abs(bounds_p[1][1])
-    Lz_p = abs(bounds_p[2][0]) + abs(bounds_p[2][1])
-    
-    Lx = abs(bounds[0][0]) + abs(bounds[0][1])
-    Ly = abs(bounds[1][0]) + abs(bounds[1][1])
-    Lz = abs(bounds[2][0]) + abs(bounds[2][1])
+
     r_cutoff = 1.501 
     delta_r = 0.3
     lj_change_comp = []
@@ -197,9 +191,9 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
         else:
             af_nbr = atom_forces[nbr_id - 1]     #if it isn't neighbor anymore
         '''ASSUMING NON-PBC in z direction'''
-        dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, Lx_p), get_displ_pbr(af_p.y, af_nbr_p.y, Ly_p), get_displ_pbr(af_p.z, af_nbr_p.z, Lz_p)
+        dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, bounds_p.Lx), get_displ_pbr(af_p.y, af_nbr_p.y, bounds_p.Ly), get_displ_pbr(af_p.z, af_nbr_p.z, bounds_p.Lz)
         r_prev = math.sqrt( dx**2 + dy**2 + dz**2 ) 
-        dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, Lx), get_displ_pbr(af.y, af_nbr.y, Ly), get_displ_pbr(af.z, af_nbr.z, Lz)
+        dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, bounds.Lx), get_displ_pbr(af.y, af_nbr.y, bounds.Ly), get_displ_pbr(af.z, af_nbr.z, bounds.Lz)
         r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
         #assert af in af_nbr.neighbors
         #assert af_p in af_nbr_p.neighbors
@@ -217,7 +211,7 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
     broken = []
     for nbr_prev in nbr_list_p:
         if nbr_prev.id not in cur_ids: 
-            dx, dy, dz = get_displ_pbr(af_p.x, nbr_prev.x, Lx_p), get_displ_pbr(af_p.y, nbr_prev.y, Ly_p), get_displ_pbr(af_p.z, nbr_prev.z, Lz_p)
+            dx, dy, dz = get_displ_pbr(af_p.x, nbr_prev.x, bounds_p.Lx), get_displ_pbr(af_p.y, nbr_prev.y, bounds_p.Ly), get_displ_pbr(af_p.z, nbr_prev.z, bounds_p.Lz)
             r_prev = math.sqrt( dx**2 + dy**2 + dz**2)
             if r_prev < rbond:
                 broken.append((af_p, nbr_prev))
@@ -225,7 +219,7 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
     formed = []
     for nbr_cur in nbr_list:
         if nbr_cur.id not in prev_ids: 
-            dx, dy, dz = get_displ_pbr(af.x, nbr_cur.x, Lx), get_displ_pbr(af.y, nbr_cur.y, Ly), get_displ_pbr(af.z, nbr_cur.z, Lz)
+            dx, dy, dz = get_displ_pbr(af.x, nbr_cur.x, bounds.Lx), get_displ_pbr(af.y, nbr_cur.y, bounds.Ly), get_displ_pbr(af.z, nbr_cur.z, bounds.Lz)
             r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
             if r_cur < rbond:
                 formed.append((af, nbr_cur))
@@ -233,9 +227,9 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
             af_nbr_p = atom_forces_p[nbr_id - 1] 
             assert af_nbr_p.id == nbr_cur.id
             af_nbr = nbr_cur
-            dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, Lx_p), get_displ_pbr(af_p.y, af_nbr_p.y, Ly_p), get_displ_pbr(af_p.z, af_nbr_p.z, Lz_p)
+            dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, bounds_p.Lx), get_displ_pbr(af_p.y, af_nbr_p.y, bounds_p.Ly), get_displ_pbr(af_p.z, af_nbr_p.z, bounds_p.Lz)
             r_prev = math.sqrt( dx**2 + dy**2 + dz**2 ) 
-            dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, Lx), get_displ_pbr(af.y, af_nbr.y, Ly), get_displ_pbr(af.z, af_nbr.z, Lz)
+            dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, bounds.Lx), get_displ_pbr(af.y, af_nbr.y, bounds.Ly), get_displ_pbr(af.z, af_nbr.z, bounds.Lz)
             r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
             flag = maxchange_criteria(r_prev, r_cur, delta_r)
             if flag == 1: 
@@ -306,16 +300,13 @@ def add_neighbors(all_pair_ids, all_res, atype):
 
 def visualize_neighbors(atom_forces, bounds):
     '''Assumption: atom_forces are sorted by id'''
-    Lx = abs(bounds[0][0]) + abs(bounds[0][1])
-    Ly = abs(bounds[1][0]) + abs(bounds[1][1])
-    Lz = abs(bounds[2][0]) + abs(bounds[2][1])
     fig = plt.figure()
     ax = Axes3D(fig)
     for af in atom_forces:
         for nbr in af.neighbors:
-            x_next = af.x + get_displ_pbr(nbr.x, af.x, Lx)
-            y_next = af.y + get_displ_pbr(nbr.y, af.y, Ly)
-            z_next = af.z + get_displ_pbr(nbr.z, af.z, Lz)
+            x_next = af.x + get_displ_pbr(nbr.x, af.x, bounds.Lx)
+            y_next = af.y + get_displ_pbr(nbr.y, af.y, bounds.Ly)
+            z_next = af.z + get_displ_pbr(nbr.z, af.z, bounds.Lz)
             if af.id - nbr.id == -1 or af.id - nbr.id == 1:
                 ax.plot([af.x, x_next], [af.y, y_next], [af.z, z_next], color = 'black')
             else:
@@ -437,7 +428,7 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
     r_boundary = False
     r_atoms = False
     skip = False
-    d = 0
+    dim = 0
     t = 0
     max_r = 0
     pbcX, pbcY, pbcZ = False, False, False #boundary periodicity flags
@@ -460,13 +451,14 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                 print("# of atoms: %d" %count)
                 r_atom_count = False
             elif r_boundary:
-                if len(bounds) < 3:
+                if dim > 0:
                     words = line.strip().split()
-                    Lmin, Lmax = map(float, words)
-                    bounds.append((Lmin, Lmax))    
-                    print(Lmin, Lmax, d)
-                d -= 1
-                if d == 0:
+                    lo, hi = map(float, words)
+                    if   dim == 3: bounds.set_x_bounds(lo, hi)
+                    elif dim == 2: bounds.set_y_bounds(lo, hi)
+                    elif dim == 1: bounds.set_z_bounds(lo, hi)
+                dim -= 1
+                if dim == 0:
                     all_bounds.append(bounds)
                     r_boundary = False
             elif r_atoms:
@@ -527,8 +519,8 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                 pbcY = True if words[-2] == "pp" else False
                 pbcZ = True if words[-1] == "pp" else False
                 r_boundary = True
-                bounds = []
-                d = 3
+                bounds = Boundary()
+                dim = 3
                 print("Next 3 lines are bondaries")
             elif 'ITEM: ATOMS' in line:
                 r_atoms = True
@@ -1161,9 +1153,7 @@ def save_lj_stats(all_res, all_bounds, times, filename, step):
                 atom_count += len(val)
             f.write("ITEM: NUMBER OF ATOMS\n%d\n" %atom_count)
             #print bounds
-            f.write("ITEM: BOX BOUNDS pp pp ff\n")
-            for (lo, hi) in bounds:
-                f.write("%e %e\n" %(lo, hi))
+            f.write(bounds.get_bounds_text())
             f.write("ITEM: ATOMS id mol type x y z fx fy fz ext comp chg brk frm\n")
             for key, atom_forces in res.items():
                 for af in atom_forces:
@@ -1194,8 +1184,8 @@ def visualize_lj_bond_stats(css):
     filename = vis_data_path + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     filenameinteractions = vis_data_path + 'pairids_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     filename_heat = out_data_path + "conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(css.M, css.N, css.T, css.r, css.cang)
-    changes_filename = "changes_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent)
-    breaks_filename = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g.png" %(css.M, css.N, css.T, css.r, css.cang,  100*percent)
+    changes_filename = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent, step)
+    breaks_filename = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  100*percent, step)
     #remove files if they already exist
     remove_file(changes_filename)
     remove_file(breaks_filename)
@@ -1226,7 +1216,7 @@ def visualize_lj_bond_stats(css):
     
     if css.T < 0.01:
         scale =  0.8214 * 0.00000416
-        heat_stats(filename_heat, scale)
+        heat_stats(filename_heat, scale, step)
     plt.savefig(changes_filename)
     plt.close()
     plot_breaks(ds, bfrac, ffrac, contactd)

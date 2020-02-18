@@ -67,7 +67,22 @@ class GFMD(Atom):
         self.y_eq = new_y
         self.z_eq = new_z
 
-    
+
+class AtomicForces(Atom):
+    def __init__(self, a_id, mol, type, x, y, z, fx, fy, fz):
+        Atom.__init__(self, a_id, type, x, y, z)
+        self.mol = mol
+        self.fx, self.fy, self.fz = fx, fy, fz
+        self.radius = self.get_radius(x, y, 0)
+        self.atr = {}
+        self.neighbors = [] 
+
+    def get_radius(self, x, y, z):
+        return (x**2 + y**2 + z**2)**(1/2)
+    def __lt__(self, other):
+        return self.radius < other.radius
+    def __eq__(self, other):
+        return self.radius == other.radius   
 
 def main():
     a = Atom(1, 1, 1, 2, 3)
