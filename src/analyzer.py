@@ -5,7 +5,7 @@ from scipy.spatial import ConvexHull
 from scipy.spatial import KDTree
 import os
 from thermoparser import heat_stats
-from boxcell import Boundary
+from boxcell import *
 forces = [500.0]
 poisson = 0.5
 G_shear_mod = 16.0
@@ -29,24 +29,6 @@ class SimulationSettings:
         self.G_shear_mod = G_shear_mod
         self.R = R
         self.d = d
-    
-'''class AtomicForces:
-    def __init__(self, a_id, mol, type, x, y, z, fx, fy, fz):
-        self.id = a_id
-        self.mol = mol
-        self.type = type
-        self.x, self.y, self.z = x, y, z
-        self.fx, self.fy, self.fz = fx, fy, fz
-        self.radius = self.get_radius(x, y, 0)
-        self.atr = {}
-        self.neighbors = [] 
-
-    def get_radius(self, x, y, z):
-        return math.sqrt(x**2 + y**2 + z**2)
-    def __lt__(self, other):
-        return self.radius < other.radius
-    def __eq__(self, other):
-        return self.radius == other.radius'''
 
 
 class ConesimSettings:
@@ -519,7 +501,7 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
                 pbcY = True if words[-2] == "pp" else False
                 pbcZ = True if words[-1] == "pp" else False
                 r_boundary = True
-                bounds = Boundary()
+                bounds = Boundary(line)
                 dim = 3
                 print("Next 3 lines are bondaries")
             elif 'ITEM: ATOMS' in line:
@@ -530,15 +512,6 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
     return all_res, all_bounds, times
 
 
-
-def get_displ_pbr(x_next, x_prev, L):
-        #get displacement vector pointing form x_prev to x_next for periodic boundary condition
-        #periodicity is L
-        sign = np.sign(x_next - x_prev)
-        dx = abs(x_next - x_prev)
-        if dx > L/2:
-            dx = -(L - dx)
-        return sign * dx
 
 def append_bondlens(filename, types, chain_count, chain_len):
     N_atoms = chain_len * chain_count
