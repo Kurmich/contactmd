@@ -52,17 +52,18 @@ def wrap_coordinates(atom_forces, bounds):
 
 def construct_cell_list(atom_forces, bounds, rc):
     #numnber of cells in x, y and z dimensions
-    Nx, Ny, Nz = bounds.Lx//rc, bounds.Ly//rc, bounds.Lz//rc
+    Nx, Ny, Nz = int(bounds.Lx//rc), int(bounds.Ly//rc), int(bounds.Lz//rc)
     N = Nx * Ny * Nz #total number of cells
     rcx, rcy, rcz = bounds.Lx/Nx, bounds.Ly/Ny, bounds.Lz/Nz
     #create cells
     cells = []
+    print(Nx, Ny, Nz, N, rcx, rcy, rcz)
     for i in range(N): cells.append(BoxCell(i))
     wrap_coordinates(atom_forces, bounds)
     for af in atom_forces:
         cx, cy, cz = af.x//rcx, af.y//rcy, af.z//rcz
-        c_idx = cz + Nz * cy + Nz * Ny * cx
-        cells[c_idx].append(af)
+        c_idx = int(cz + Nz * cy + Nz * Ny * cx)
+        cells[c_idx].elements.append(af)
     return cells
 
 def get_displ_pbr(x_next, x_prev, L):
@@ -76,10 +77,11 @@ def get_displ_pbr(x_next, x_prev, L):
 
 def create_neighbor_lists(atom_forces, bounds, rc):
     cells = construct_cell_list(atom_forces, bounds, rc)
-    Nx, Ny, Nz = bounds.Lx//rc, bounds.Ly//rc, bounds.Lz//rc
+    Nx, Ny, Nz = int(bounds.Lx//rc), int(bounds.Ly//rc), int(bounds.Lz//rc)
     #N = Nx * Ny * Nz #total number of cells
     #scan cells
     rc_sq = rc**2
+    pair_count = 0
     for cx in range(Nx):
         for cy in range(Ny):
             for cz in range(Nz):
@@ -90,7 +92,9 @@ def create_neighbor_lists(atom_forces, bounds, rc):
                     for iy in range(cy-1, cy+2):
                         for iz in range(cz-1, cz+2):
                             #shift cell index to range [0, N-1]
+                            if not bounds.pbcZ and (iz < 0 or iz > Nz): continue
                             nbr_c_idx = (iz + Nz)%Nz + ((iy + Ny)%Ny) * Nz + ((ix + Nx)%Nx) * Nz * Ny
+                            #print("mid: %d nbr: %d" %(c_idx, nbr_c_idx))
                             nbr_cell = cells[nbr_c_idx]
                             for af in mid_cell.elements:
                                 for nbr_af in nbr_cell.elements:
@@ -101,7 +105,41 @@ def create_neighbor_lists(atom_forces, bounds, rc):
                                         rsq = dx**2 + dy**2 + dz**2
                                         if rsq < rc_sq:
                                             af.neighbors.append(nbr_af)
-                                            nbr_af.append(af)
+                                            nbr_af.neighbors.append(af)
+                                            pair_count += 1
+                                        if rsq > rc_sq * 15:
+                                            print("mid: %d nbr: %d" %(c_idx, nbr_c_idx))
+                                            print(rsq)
+    return pair_count
+                                            
+def test_neighbor_lists(atom_forces, pair_ids, atype, bounds, rc):
+    create_neighbor_lists(atom_forces, bounds, rc)
+    M = len(atom_forces)
+    mismatch_count = 0
+    for (id1, id2) in pair_ids:
+        if id1 > M or id2 > M: continue
+        af1 = atom_forces[id1-1]
+        af2 = atom_forces[id2-1]
+        miss = True
+        for nbr_af in af1.neighbors:
+            if nbr_af.id == af2.id:
+                miss = False
+                break
+        if miss:
+            dx = get_displ_pbr(af1.x, af2.x, bounds.Lx)
+            dy = get_displ_pbr(af1.y, af2.y, bounds.Ly)
+            dz = get_displ_pbr(af1.z, af2.z, bounds.Lz)
+            print((dx**2 + dy**2 +dz**2)**(1/2))
+            mismatch_count += 1
+            #print("Mismatch %d %d" %(id1, id2))
+        miss = True
+        for nbr_af in af2.neighbors:
+            if nbr_af.id == af1.id:
+                miss = False
+                break
+        #if miss: 
+        #    print("Mismatch")
+    print("# of mismatches: %d total: %d" %(mismatch_count, len(pair_ids)))
 '''
 b = Boundary("ITEM: BOX BOUNDS pp pp ff")
 b.set_x_bounds(1,2)

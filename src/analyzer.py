@@ -50,7 +50,7 @@ class ConesimSettings:
         
 Temp = 0.0001
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(15, 20, 2)
+css.set_analysisvals(17, 22, 2)
 
   
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
@@ -234,28 +234,6 @@ def is_neighbor(a_id, neighbor_list):
 def get_separation(af1, af2):
     return math.sqrt((af1.x - af2.x)**2 + (af1.y - af2.y)**2 + (af1.z - af2.z)**2)
 
-def contruct_neighbors(atom_forces, rc):
-    '''rc - cutoff radius'''
-    N = len(atom_forces)
-    point2idx = {}
-    data = np.zeros([N, 3])
-    for i in range(N):
-        af = atom_forces[i]
-        x, y, z = af.x, af.y, af.z
-        data[i, 0], data[i, 1], data[i, 2] = x, y, z
-        point2idx[(x, y, z)] = i
-    tree = KDTree(data)
-    #NEED TO WRAP PBC
-    for i in range(N):
-        point = data[i, :]
-        nbrs = tree.query_ball_point(point, rc)
-        atom_forces[i].neighbors = nbrs
-        #for nbr in nbrs:
-            #atom_forces[i].neighbors.append(atom_forces[nbr])
-            #print(data[nbr, :])
-        #break
-        #print(nbrs)
-
 
 def add_neighbors(all_pair_ids, all_res, atype):
     N = len(all_pair_ids)
@@ -265,13 +243,13 @@ def add_neighbors(all_pair_ids, all_res, atype):
     for i in range(N):
         pair_count = 0
         pair_ids = all_pair_ids[i]
-        atomic_forces = all_res[i]
+        atom_forces = all_res[i][atype]
         M = len(atomic_forces[atype])
         for (id1, id2) in pair_ids:
             if min(id1, id2) <= M and max(id1, id2) > M: contact_idx = min(contact_idx, i)
             if id1 > M or id2 > M: continue
-            af1 = atomic_forces[atype][id1-1] ## ASSUMING ATOMS ARE SORTED ACCORDING TO THEIR IDS
-            af2 = atomic_forces[atype][id2-1]
+            af1 = atom_forces[id1-1] ## ASSUMING ATOMS ARE SORTED ACCORDING TO THEIR IDS
+            af2 = atom_forces[id2-1]
             #print(af1.id, id1, af2.id, id2)
             assert af1.id == id1 and af2.id == id2
             af1.neighbors.append(af2)
@@ -280,6 +258,17 @@ def add_neighbors(all_pair_ids, all_res, atype):
         print("i: %d number of pairs: %d" %(i, pair_count))
     return contact_idx
 
+
+def construct_neighbors(all_res, all_bounds, atype, rc):
+    N = len(all_res)
+    pair_counts = []
+    for i in range(N):
+        atom_forces = all_res[i][atype]
+        bounds      = all_bounds[i]
+        pair_count = create_neighbor_lists(atom_forces, bounds, rc)
+        pair_counts.append(pair_count)
+    return pair_counts
+        
 def visualize_neighbors(atom_forces, bounds):
     '''Assumption: atom_forces are sorted by id'''
     fig = plt.figure()
@@ -1162,15 +1151,20 @@ def visualize_lj_bond_stats(css):
     #remove files if they already exist
     remove_file(changes_filename)
     remove_file(breaks_filename)
+    rc = 1.5 + 0.000000000001
+    idx = 0 #CHANGE THIS
+    contactd = 3
     for t_start in range(t_init, t_final, t_step):
         t_end = t_start + t_step + step - 1
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
+        #pair_counts = construct_neighbors(all_res, all_bounds, glass, rc)
         all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
-        idx = add_neighbors(all_inter, all_res, glass)
+        #idx = add_neighbors(all_inter, all_res, glass)
+        test_neighbor_lists(all_res[0][glass], all_inter[0], glass, all_bounds[0], rc)
         #if css.T > 0.01:
         #    reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent)
-        if idx < t_final:
-            contactd = min(contactd, times[idx]*vz*dt)
+        #if idx < t_final:
+        #    contactd = min(contactd, times[idx]*vz*dt)
         changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, all_bounds, percent, step)
         ccfrac.extend( [changes_comp[i]/pair_counts[i]    for i in range(len(changes_comp))] )
         cefrac.extend( [changes_ext[i]/pair_counts[i]     for i in range(len(changes_ext))] )
