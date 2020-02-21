@@ -265,7 +265,7 @@ def construct_neighbors(all_res, all_bounds, atype, rc):
     for i in range(N):
         atom_forces = all_res[i][atype]
         bounds      = all_bounds[i]
-        pair_count = create_neighbor_lists(atom_forces, bounds, rc)
+        pair_count  = create_neighbor_lists(atom_forces, bounds, rc)
         pair_counts.append(pair_count)
     return pair_counts
         
@@ -1157,10 +1157,13 @@ def visualize_lj_bond_stats(css):
     for t_start in range(t_init, t_final, t_step):
         t_end = t_start + t_step + step - 1
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
-        #pair_counts = construct_neighbors(all_res, all_bounds, glass, rc)
-        all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
+        pair_counts = construct_neighbors(all_res, all_bounds, glass, rc)
+        #all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
+        #for i in range(len(all_res)):
+        #    test_neighbor_lists(all_res[i][glass], all_inter[i], glass, all_bounds[i], rc)
+        #
         #idx = add_neighbors(all_inter, all_res, glass)
-        test_neighbor_lists(all_res[0][glass], all_inter[0], glass, all_bounds[0], rc)
+        #test_neighbor_lists(all_res[0][glass], all_inter[0], glass, all_bounds[0], rc)
         #if css.T > 0.01:
         #    reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent)
         #if idx < t_final:
