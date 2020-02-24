@@ -62,7 +62,8 @@ def construct_cell_list(atom_forces, bounds, rc):
     print(Nx, Ny, Nz, N, rcx, rcy, rcz)
     for i in range(N): cells.append(BoxCell(i))
     wrap_coordinates(atom_forces, bounds)
-    for af in atom_forces:
+    for i in range(len(atom_forces)):
+        af = atom_forces[i]
         #make all coordinates positive
         x = (af.x - bounds.xlo)#%bounds.Lx
         y = (af.y - bounds.ylo)#%bounds.Ly
@@ -70,7 +71,8 @@ def construct_cell_list(atom_forces, bounds, rc):
         cx, cy, cz = x//rcx, y//rcy, z//rcz
         if cx < 0 or cy < 0 or cz < 0: print("Error, cx: %d cy: %d cz: %d" %(cx, cy, cz))
         c_idx = int( cz + Nz*(cy + Ny*cx) )
-        cells[c_idx].elements.append(af)
+        cells[c_idx].elements.append(i)
+    #cells stores indices of atom_forces in an array
     return cells
 
 def get_displ_pbr(x_next, x_prev, L):
@@ -103,8 +105,10 @@ def create_neighbor_lists(atom_forces, bounds, rc):
                             nbr_c_idx = (iz + Nz)%Nz + ((iy + Ny)%Ny) * Nz + ((ix + Nx)%Nx) * Nz * Ny
                             #print("mid: %d nbr: %d" %(c_idx, nbr_c_idx))
                             nbr_cell = cells[nbr_c_idx]
-                            for af in mid_cell.elements:
-                                for nbr_af in nbr_cell.elements:
+                            for af_idx in mid_cell.elements:
+                                for nbr_af_idx in nbr_cell.elements:
+                                    af     = atom_forces[af_idx]
+                                    nbr_af = atom_forces[nbr_af_idx]
                                     if af.id < nbr_af.id:
                                         dx = get_displ_pbr(af.x, nbr_af.x, bounds.Lx)
                                         dy = get_displ_pbr(af.y, nbr_af.y, bounds.Ly)
@@ -118,6 +122,7 @@ def create_neighbor_lists(atom_forces, bounds, rc):
                                             print("mid: %d nbr: %d" %(c_idx, nbr_c_idx))
                                             print(af.x, af.y, af.z, nbr_af.x, nbr_af.y, nbr_af.z, rsq**(1/2))
     print("Pair count: %d" %pair_count)
+    cells = None
     return pair_count
                                             
 def test_neighbor_lists(atom_forces, pair_ids, atype, bounds, rc):

@@ -88,8 +88,11 @@ class PolymerMelt:
         atom_lines      = []
         vel_lines       = []
         bond_lines      = []
-        bond_id = 1
-        bond_type = 1 #THIS IS ADHOC ONLY FOR SIGNLE BOND TYPE
+        angle_lines     = []
+        bond_id         = 1
+        angle_id        = 1
+        bond_type       = 1 #THIS IS ADHOC ONLY FOR SIGNLE BOND TYPE
+        angle_type      = 1 #THIS IS ADHOC ONLY FOR SIGNLE ANGLE TYPE
         for polymer in self.polymers:
             for mi in range(len(polymer.monomers)):
                 mon = polymer.monomers[mi]
@@ -102,9 +105,20 @@ class PolymerMelt:
                     bond_line = "%d %d %d %d\n" %(bond_id, bond_type, mon.mon_id, next_mon.mon_id)
                     bond_lines.append(bond_line)
                     bond_id += 1
-        self.sections["Atoms"]      = atom_lines
-        self.sections["Velocities"] = vel_lines
-        self.sections["Bonds"]      = bond_lines
+                if mi < len(polymer.monomers)-2:
+                    next_mon = polymer.monomers[mi+1]
+                    next_next_mon = polymer.monomers[mi+2]
+                    angle_line = "%d %d %d %d %d\n" %(angle_id, angle_type, mon.mon_id, next_mon.mon_id, next_next_mon.mon_id)
+                    angle_lines.append(angle_line)
+                    angle_id += 1
+        #add angle headers
+        self.headers["angles"]       = angle_id - 1
+        self.headers["angle types"]  = angle_type
+        
+        self.sections["Atoms"]       = atom_lines
+        self.sections["Velocities"]  = vel_lines
+        self.sections["Bonds"]       = bond_lines
+        self.sections["Angles"]      = angle_lines
     def write_lammps_file(self, filename):
         d = data()
         d.title = "Lammps data file; Equilibrated Polymer Melt"
@@ -355,11 +369,13 @@ def main():
     M = 2000
     N = 256
     T = 0.0001
-    '''  
-    filename = "M%dN%d/melt_M%d_N%d.data" %(M,N,M,N)
+    #'''  
+    filename = "../lammpsinput/melt_wallz_M%d_N%d.data" %(M,N)
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
+    pol_melt.write_sections()
+    pol_melt.write_lammps_file("../lammpsinput/melt_wallz_stiff_M%d_N%d.data" %(M,N))
     pol_melt.plot_mean_square('b', 'Initial')
     '''
     filename = "../lammpsinput/data_quenched_M%d_N%d_T%g" %(M,N,T)
@@ -378,6 +394,7 @@ def main():
     plt.legend()
     plt.show()
     pol_melt.plot_polymer(3)
+    '''
 if __name__=="__main__":
     main()
 

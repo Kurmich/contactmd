@@ -1148,9 +1148,11 @@ def visualize_lj_bond_stats(css):
     filename_heat = out_data_path + "conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(css.M, css.N, css.T, css.r, css.cang)
     changes_filename = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent, step)
     breaks_filename = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  100*percent, step)
+    vischanges_filename = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent)
     #remove files if they already exist
     remove_file(changes_filename)
     remove_file(breaks_filename)
+    remove_file(vischanges_filename)
     rc = 1.5 + 0.000000000001
     idx = 0 #CHANGE THIS
     contactd = 3
@@ -1174,7 +1176,8 @@ def visualize_lj_bond_stats(css):
         bfrac.extend(  [breaks[i]/pair_counts[i]          for i in range(len(breaks))] )
         ffrac.extend(  [formations[i]/pair_counts[i]      for i in range(len(formations))] )
         ds.extend(     [vz*dt*times[i] - d0               for i in range(len(times)-step)] )
-        save_lj_stats(all_res, all_bounds, times, "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent), step)
+        save_lj_stats(all_res, all_bounds, times, vischanges_filename, step)
+        print("t start: %d\n" %t_start, flush=True)
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
     #Write rate of rearragements to a file
