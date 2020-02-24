@@ -6,6 +6,7 @@ from scipy.spatial import KDTree
 import os
 from thermoparser import heat_stats
 from boxcell import *
+import gc
 forces = [500.0]
 poisson = 0.5
 G_shear_mod = 16.0
@@ -18,8 +19,8 @@ epsilon = 0.000001
 vis_data_path = '../visfiles/'
 out_data_path = '../visfiles/'
 #idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
-vis_data_path = '/home/kkurman1/equilibrate/identtip/visfiles/'
-out_data_path =  '/home/kkurman1/equilibrate/identtip/outputfiles/'
+#vis_data_path = '/home/kkurman1/equilibrate/identtip/visfiles/'
+#out_data_path =  '/home/kkurman1/equilibrate/identtip/outputfiles/'
 
 
 
@@ -50,9 +51,9 @@ class ConesimSettings:
         self.t_step  = t_step  #us this much dumps for analysis at single iteration
         print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
         
-Temp = 0.0001
+Temp = 0.2
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(17, 22, 2)
+css.set_analysisvals(17, 20, 2)
 
   
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
@@ -1189,6 +1190,7 @@ def visualize_lj_bond_stats(css):
         ds.extend(     [vz*dt*times[i] - d0               for i in range(len(times)-step)] )
         save_lj_stats(all_res, all_bounds, times, vischanges_filename, step)
         print("t start: %d\n" %t_start, flush=True)
+        gc.collect() #
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
     #Write rate of rearragements to a file

@@ -124,7 +124,7 @@ def create_neighbor_lists(atom_forces, bounds, rc):
                                             print("mid: %d nbr: %d" %(c_idx, nbr_c_idx))
                                             print(af.x, af.y, af.z, nbr_af.x, nbr_af.y, nbr_af.z, rsq**(1/2))
     print("Pair count: %d" %pair_count)
-    cells = None
+    del cells
     return pair_count
                                             
 def test_neighbor_lists(atom_forces, pair_ids, atype, bounds, rc):
