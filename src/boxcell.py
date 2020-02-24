@@ -65,11 +65,13 @@ def construct_cell_list(atom_forces, bounds, rc):
     for i in range(len(atom_forces)):
         af = atom_forces[i]
         #make all coordinates positive
-        x = (af.x - bounds.xlo)#%bounds.Lx
-        y = (af.y - bounds.ylo)#%bounds.Ly
-        z = (af.z - bounds.zlo)#%bounds.Lz
+        x = (af.x - bounds.xlo)
+        y = (af.y - bounds.ylo)
+        z = (af.z - bounds.zlo)
+        #get cell indices in x, y, z directions
         cx, cy, cz = x//rcx, y//rcy, z//rcz
         if cx < 0 or cy < 0 or cz < 0: print("Error, cx: %d cy: %d cz: %d" %(cx, cy, cz))
+        #linearize cell index to get index in an array
         c_idx = int( cz + Nz*(cy + Ny*cx) )
         cells[c_idx].elements.append(i)
     #cells stores indices of atom_forces in an array

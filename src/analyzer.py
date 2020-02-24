@@ -18,6 +18,8 @@ epsilon = 0.000001
 vis_data_path = '../visfiles/'
 out_data_path = '../visfiles/'
 #idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
+vis_data_path = '/home/kkurman1/equilibrate/identtip/visfiles/'
+out_data_path =  '/home/kkurman1/equilibrate/identtip/outputfiles/'
 
 
 
@@ -149,10 +151,19 @@ def fracchange_criteria(r_prev, r_cur, percent):
             return -1
     return 0
 
+def get_displacements(a_next, a_cur, bounds):
+    dx = a_next.x - a_cur.x
+    dy = a_next.y - a_cur.y
+    dz = a_next.z - a_cur.z
+    if bounds.pbcX:  dx = get_displ_pbr(a_next.x, a_cur.x, bounds.Lx)
+    if bounds.pbcY:  dy = get_displ_pbr(a_next.y, a_cur.y, bounds.Ly)
+    if bounds.pbcZ:  dz = get_displ_pbr(a_next.z, a_cur.z, bounds.Lz)
+    return dx, dy, dz
+        
+
 def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
     '''bounds - current bounds
-       bounds_p - previous bounds
-       _p stands for previous dump
+       bounds_p - previous bounds, here _p stands for previous dump
     '''
 
     r_cutoff = 1.501 
@@ -180,13 +191,13 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
         #assert af in af_nbr.neighbors
         #assert af_p in af_nbr_p.neighbors
         assert af_nbr_p.id == af_nbr.id
-        #assert r_prev < r_cutoff and r_cur < r_cutoff, "Interaction distance is > rc = %g r_prev: %g r_cur: %g" %(r_cutoff, r_prev, r_cur)
+#        assert r_prev < r_cutoff and r_cur < r_cutoff, "Interaction distance is > rc = %g r_prev: %g r_cur: %g" %(r_cutoff, r_prev, r_cur)
         #assert r_prev < r_cutoff, "Interaction distance is > rc = %g r_prev: %g" %(r_cutoff, r_prev)
         flag = maxchange_criteria(r_prev, r_cur, delta_r)
         if flag == 1: 
-            lj_change_ext.append((af, af_nbr))
+            lj_change_ext.append((af.id, af_nbr.id))
         elif flag == -1:
-            lj_change_comp.append((af, af_nbr))
+            lj_change_comp.append((af.id, af_nbr.id))
             
     rbond = 1.2
     
@@ -196,7 +207,7 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
             dx, dy, dz = get_displ_pbr(af_p.x, nbr_prev.x, bounds_p.Lx), get_displ_pbr(af_p.y, nbr_prev.y, bounds_p.Ly), get_displ_pbr(af_p.z, nbr_prev.z, bounds_p.Lz)
             r_prev = math.sqrt( dx**2 + dy**2 + dz**2)
             if r_prev < rbond:
-                broken.append((af_p, nbr_prev))
+                broken.append((af_p.id, nbr_prev.id))
     
     formed = []
     for nbr_cur in nbr_list:
@@ -216,9 +227,9 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
             flag = maxchange_criteria(r_prev, r_cur, delta_r)
             if flag == 1: 
                 print("Error bond can't be extended")
-                lj_change_ext.append((af, af_nbr))
+                lj_change_ext.append((af.id, af_nbr.id))
             elif flag == -1:
-                lj_change_comp.append((af, af_nbr))
+                lj_change_comp.append((af.id, af_nbr.id))
         
     return lj_change_comp, lj_change_ext, broken, formed
             
@@ -244,7 +255,7 @@ def add_neighbors(all_pair_ids, all_res, atype):
         pair_count = 0
         pair_ids = all_pair_ids[i]
         atom_forces = all_res[i][atype]
-        M = len(atomic_forces[atype])
+        M = len(atom_forces)
         for (id1, id2) in pair_ids:
             if min(id1, id2) <= M and max(id1, id2) > M: contact_idx = min(contact_idx, i)
             if id1 > M or id2 > M: continue
