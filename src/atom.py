@@ -73,9 +73,11 @@ class AtomicForces(Atom):
         Atom.__init__(self, a_id, type, x, y, z)
         self.mol = mol
         self.fx, self.fy, self.fz = fx, fy, fz
-        self.radius = self.get_radius(x, y, 0)
-        self.atr = {}
-        self.neighbors = [] 
+        self.radius               = self.get_radius(x, y, 0)
+        self.atr                  = {}
+        self.neighbors            = []
+        self.ext_ids              = set()
+        self.comp_ids             = set()
 
     def get_radius(self, x, y, z):
         return (x**2 + y**2 + z**2)**(1/2)

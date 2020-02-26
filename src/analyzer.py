@@ -89,13 +89,17 @@ def inser_new_nbrs(root_af, child_af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz):
     for af in child_af.neighbors:
         inser_new_nbrs(root_af, af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz )
         
-    
+memory_atom_forces_p = None
+
 def get_lj_bond_stats(all_res, atype, all_bounds, percent, step):
     '''ASSUMPTION: that all atom_forces are sorted by their IDs'''
-    breaks = []
-    formations = []
-    changes_comp = []
-    changes_ext = []
+    breaks        = []
+    formations    = []
+    changes_comp  = []
+    changes_ext   = []
+    comp_then_ext = []
+    ext_then_comp = []
+    global memory_atom_forces_p
     N = len(all_res)
     assert N >= step
     for i in range(step, N):
@@ -129,12 +133,34 @@ def get_lj_bond_stats(all_res, atype, all_bounds, percent, step):
         changes_ext.append(lj_change_count_e/2)
         breaks.append(broken_count/2)
         formations.append(formed_count/2)
+        if i == step and memory_atom_forces_p is not None:
+            print("Assigning from memory")
+            atom_forces_p = memory_atom_forces_p
+        elif i == N-1:
+            print("Assigning memory")
+            memory_atom_forces_p = atom_forces
+        comp_back, ext_back = reverse_changes(atom_forces_p, atom_forces)
+        comp_then_ext.append(ext_back/2)
+        ext_then_comp.append(comp_back/2)
         #plt.show()
         #fig.savefig("t: %d.png" %i)
-        print("i: %d change comp: %g change ext: %d broken: %d formed: %d" %(i, lj_change_count_c, lj_change_count_e, broken_count, formed_count), flush = True)
-    return changes_comp, changes_ext, breaks, formations
+        print("i: %d change comp: %g change ext: %d broken: %d formed: %d c-e: %d e-c: %d" %(i, lj_change_count_c, lj_change_count_e, broken_count, formed_count, ext_back, comp_back), flush = True)
+    return changes_comp, changes_ext, breaks, formations, comp_then_ext, ext_then_comp
 
 
+
+def reverse_changes(atom_forces_p, atom_forces):
+    comp_back, ext_back = 0, 0
+    for i in range(len(atom_forces)):
+        af   = atom_forces[i]
+        af_p = atom_forces_p[i]
+        for id_ext in af.ext_ids:
+            if id_ext in af_p.comp_ids:
+                ext_back += 1
+        for id_comp in af.comp_ids:
+            if id_comp in af_p.ext_ids:
+                comp_back += 1
+    return comp_back, ext_back
 
 def maxchange_criteria(r_prev, r_cur, delta_r):
     if abs(r_prev - r_cur) > delta_r:
@@ -195,10 +221,14 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
 #        assert r_prev < r_cutoff and r_cur < r_cutoff, "Interaction distance is > rc = %g r_prev: %g r_cur: %g" %(r_cutoff, r_prev, r_cur)
         #assert r_prev < r_cutoff, "Interaction distance is > rc = %g r_prev: %g" %(r_cutoff, r_prev)
         flag = maxchange_criteria(r_prev, r_cur, delta_r)
-        if flag == 1: 
+        if flag == 1:
+            af.ext_ids.add(af_nbr.id)
+            af_nbr.ext_ids.add(af.id)
             lj_change_ext.append((af.id, af_nbr.id))
         elif flag == -1:
             lj_change_comp.append((af.id, af_nbr.id))
+            af.comp_ids.add(af_nbr.id)
+            af_nbr.comp_ids.add(af.id)
             
     rbond = 1.2
     
@@ -231,6 +261,8 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
                 lj_change_ext.append((af.id, af_nbr.id))
             elif flag == -1:
                 lj_change_comp.append((af.id, af_nbr.id))
+                af.comp_ids.add(af_nbr.id)
+                af_nbr.comp_ids.add(af.id)
         
     return lj_change_comp, lj_change_ext, broken, formed
             
@@ -1091,7 +1123,7 @@ def plot_stresszz_d(all_res, times, v, type):
 def plot_changes(ds, ccfrac, cefrac, contactd, percent):
     cfrac = [ccfrac[i] + cefrac[i] for i in range(len(ccfrac))]
     fig = plt.figure()
-    plt.title("Changes by %g %% vs displacement of the tip" %(100*percent))
+    #plt.title("Changes by %g %% vs displacement of the tip" %(100*percent))
     plt.plot(ds, ccfrac, label = "Compressed")
     plt.plot(ds, cefrac, label = "Extended")
     plt.plot(ds, cfrac,  label = "Changed" )
@@ -1152,6 +1184,7 @@ def visualize_lj_bond_stats(css):
     t_step = css.t_step
     step = 1 #step for calculations
     ccfrac, cefrac, bfrac, ffrac  = [], [], [], []
+    comp_ext_frac, ext_comp_frac = [], [] 
     ds = []
     percent = 0.2
     contactd = 100000000000
@@ -1182,17 +1215,22 @@ def visualize_lj_bond_stats(css):
         #    reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent)
         #if idx < t_final:
         #    contactd = min(contactd, times[idx]*vz*dt)
-        changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, all_bounds, percent, step)
+        changes_comp, changes_ext, breaks, formations, comp_then_ext, ext_then_comp = get_lj_bond_stats(all_res, glass, all_bounds, percent, step)
         ccfrac.extend( [changes_comp[i]/pair_counts[i]    for i in range(len(changes_comp))] )
         cefrac.extend( [changes_ext[i]/pair_counts[i]     for i in range(len(changes_ext))] )
         bfrac.extend(  [breaks[i]/pair_counts[i]          for i in range(len(breaks))] )
         ffrac.extend(  [formations[i]/pair_counts[i]      for i in range(len(formations))] )
         ds.extend(     [vz*dt*times[i] - d0               for i in range(len(times)-step)] )
+        comp_ext_frac.extend([comp_then_ext[i]/pair_counts[i]    for i in range(len(comp_then_ext))])
+        ext_comp_frac.extend([ext_then_comp[i]/pair_counts[i]    for i in range(len(ext_then_comp))])
         save_lj_stats(all_res, all_bounds, times, vischanges_filename, step)
         print("t start: %d\n" %t_start, flush=True)
         gc.collect() #
     print(len(ds), len(ffrac))
     plot_changes(ds, ccfrac, cefrac, contactd, percent)
+    plt.plot(ds, comp_ext_frac, label = "CE")
+    plt.plot(ds, ext_comp_frac, label = "EC")
+    plt.legend()
     #Write rate of rearragements to a file
     deld = ds[step] - ds[0]
     rate = [(ccfrac[i] + cefrac[i])/deld for i in range(len(ccfrac))]
