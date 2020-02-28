@@ -109,12 +109,12 @@ def motion_stats(filename):
     
 def main():
     M, N = 2000, 256
-    T = 0.0001
+    T = 0.2
     R, cang = 10, 45
-    #filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
-    #motion_stats(filename)
-    filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(M, N, T, R, cang)
-    heat_stats(filename, 0.8214 * 0.00000416, 1)
+    filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
+    motion_stats(filename)
+    #filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(M, N, T, R, cang)
+    #heat_stats(filename, 0.8214 * 0.00000416, 1)
     
     
 if __name__ == "__main__":

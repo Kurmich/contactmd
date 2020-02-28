@@ -7,7 +7,7 @@ Created on Tue Feb 25 16:36:11 2020
 
 import matplotlib.pyplot as plt
 import numpy as np
-T = 0.2
+T = 0.0001
 file2 = "../rate_T%g_deld0.4.txt" %T
 file1 = "../rate_T%g_deld0.2.txt" %T 
 file3 = "../rate_T%g_deld0.6.txt" %T   
@@ -86,12 +86,12 @@ r2 = []
 with open(file2, "r") as f:
   for line in f:
     r2.append(float(line.strip()))
-'''   
+ 
 r3 = []
 with open(file3, "r") as f:
   for line in f:
     r3.append(float(line.strip()))
-'''
+
 
 #plt.plot(r1, label = "d = 0.2")
 #plt.plot(r2, label = "d = 0.4")
@@ -104,7 +104,7 @@ coeff = np.polyfit(r1_new, r2[:-1], 1)
 poly1d_fn = np.poly1d(coeff)
 plt.scatter(r1_new[x:], r2[x:-1])
 print(len(r2), len(r1_new))
-plt.plot( r1_new[x:], poly1d_fn(r1_new[x:]), 'k--', label = "m = %3.2f, b = %3.2f" %(coeff[0], coeff[1]), color = 'green')
+plt.plot( r1_new[x:], poly1d_fn(r1_new[x:]), 'k--', label = "m = %3.2f, b = %3.2f, displ = 0.4" %(coeff[0], coeff[1]), color = 'green')
 plt.legend()
 plt.show()
 
@@ -116,6 +116,6 @@ coeff = np.polyfit(r1_new2, r3[:-2], 1)
 poly1d_fn = np.poly1d(coeff)
 plt.scatter(r1_new2, r3[:-2])
 print(len(r3), len(r1_new2))
-plt.plot( r1_new2, poly1d_fn(r1_new2), 'k--', label = "m = %3.2f, b = %3.2f" %(coeff[0], coeff[1]))
+plt.plot( r1_new2, poly1d_fn(r1_new2), 'k--', label = "m = %3.2f, b = %3.2f, displ = 0.6" %(coeff[0], coeff[1]))
 plt.legend()
 plt.show()

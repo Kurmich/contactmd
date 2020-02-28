@@ -86,6 +86,16 @@ def get_displ_pbr(x_next, x_prev, L):
             dx = -(L - dx)
         return sign * dx
 
+def get_dxdydz(a_next, a_cur, bounds):
+    dx = a_next.x - a_cur.x
+    dy = a_next.y - a_cur.y
+    dz = a_next.z - a_cur.z
+    if bounds.pbcX:  dx = get_displ_pbr(a_next.x, a_cur.x, bounds.Lx)
+    if bounds.pbcY:  dy = get_displ_pbr(a_next.y, a_cur.y, bounds.Ly)
+    if bounds.pbcZ:  dz = get_displ_pbr(a_next.z, a_cur.z, bounds.Lz)
+    return dx, dy, dz
+
+
 def create_neighbor_lists(atom_forces, bounds, rc):
     cells = construct_cell_list(atom_forces, bounds, rc)
     Nx, Ny, Nz = int(bounds.Lx//rc), int(bounds.Ly//rc), int(bounds.Lz//rc)
@@ -112,9 +122,10 @@ def create_neighbor_lists(atom_forces, bounds, rc):
                                     af     = atom_forces[af_idx]
                                     nbr_af = atom_forces[nbr_af_idx]
                                     if af.id < nbr_af.id:
-                                        dx = get_displ_pbr(af.x, nbr_af.x, bounds.Lx)
-                                        dy = get_displ_pbr(af.y, nbr_af.y, bounds.Ly)
-                                        dz = get_displ_pbr(af.z, nbr_af.z, bounds.Lz)
+                                        dx, dy, dz = get_dxdydz(af, nbr_af, bounds)
+                                        #dx = get_displ_pbr(af.x, nbr_af.x, bounds.Lx)
+                                        #dy = get_displ_pbr(af.y, nbr_af.y, bounds.Ly)
+                                        #dz = get_displ_pbr(af.z, nbr_af.z, bounds.Lz)
                                         rsq = dx**2 + dy**2 + dz**2
                                         if rsq < rc_sq:
                                             af.neighbors.append(nbr_af)
@@ -142,9 +153,10 @@ def test_neighbor_lists(atom_forces, pair_ids, atype, bounds, rc):
                 miss = False
                 break
         if miss:
-            dx = get_displ_pbr(af1.x, af2.x, bounds.Lx)
-            dy = get_displ_pbr(af1.y, af2.y, bounds.Ly)
-            dz = get_displ_pbr(af1.z, af2.z, bounds.Lz)
+            dx, dy, dz = get_dxdydz(af1, af2, bounds)
+            #dx = get_displ_pbr(af1.x, af2.x, bounds.Lx)
+            #dy = get_displ_pbr(af1.y, af2.y, bounds.Ly)
+            #dz = get_displ_pbr(af1.z, af2.z, bounds.Lz)
             print((dx**2 + dy**2 +dz**2)**(1/2))
             print(af1.x, af1.y, af1.z, af2.x, af2.y, af2.z)
             mismatch_count += 1
