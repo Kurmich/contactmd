@@ -91,7 +91,7 @@ def inser_new_nbrs(root_af, child_af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz):
         
 memory_atom_forces_p = None
 
-def get_lj_bond_stats(all_res, atype, all_bounds, percent, step):
+def get_lj_bond_stats(all_res, atype, all_bounds, delta_r, step):
     '''ASSUMPTION: that all atom_forces are sorted by their IDs'''
     breaks        = []
     formations    = []
@@ -120,7 +120,7 @@ def get_lj_bond_stats(all_res, atype, all_bounds, percent, step):
             af   = atom_forces[j]
             af_p = atom_forces_p[j]
             assert af.id == af_p.id
-            lj_change_comp, lj_change_ext, broken, formed = get_stats(atom_forces, atom_forces_p, af_p, af_p.neighbors, af, af.neighbors, bounds_p, bounds, percent)
+            lj_change_comp, lj_change_ext, broken, formed = get_stats(atom_forces, atom_forces_p, af_p, af_p.neighbors, af, af.neighbors, bounds_p, bounds, delta_r)
             lj_change_count_c  += len(lj_change_comp)
             lj_change_count_e  += len(lj_change_ext)
             broken_count       += len(broken) 
@@ -181,13 +181,12 @@ def fracchange_criteria(r_prev, r_cur, percent):
     return 0
         
 
-def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
+def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, delta_r):
     '''bounds - current bounds
        bounds_p - previous bounds, here _p stands for previous dump
     '''
 
     r_cutoff = 1.501 
-    delta_r = 0.3
     lj_change_comp = []
     lj_change_ext = []
     prev_ids = {}
@@ -206,11 +205,11 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
             af_nbr = atom_forces[nbr_id - 1]     #if it isn't neighbor anymore
         '''ASSUMING NON-PBC in z direction'''
         dx, dy, dz = get_dxdydz(af_p, af_nbr_p, bounds_p)
-        #dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, bounds_p.Lx), get_displ_pbr(af_p.y, af_nbr_p.y, bounds_p.Ly), get_displ_pbr(af_p.z, af_nbr_p.z, bounds_p.Lz)
         r_prev = math.sqrt( dx**2 + dy**2 + dz**2 )
+        
         dx, dy, dz = get_dxdydz(af, af_nbr, bounds)
-        #dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, bounds.Lx), get_displ_pbr(af.y, af_nbr.y, bounds.Ly), get_displ_pbr(af.z, af_nbr.z, bounds.Lz)
         r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
+        
         #assert af in af_nbr.neighbors
         #assert af_p in af_nbr_p.neighbors
         assert af_nbr_p.id == af_nbr.id
@@ -232,7 +231,6 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
     for nbr_prev in nbr_list_p:
         if nbr_prev.id not in cur_ids:
             dx, dy, dz = get_dxdydz(af_p, nbr_prev, bounds_p)
-            #dx, dy, dz = get_displ_pbr(af_p.x, nbr_prev.x, bounds_p.Lx), get_displ_pbr(af_p.y, nbr_prev.y, bounds_p.Ly), get_displ_pbr(af_p.z, nbr_prev.z, bounds_p.Lz)
             r_prev = math.sqrt( dx**2 + dy**2 + dz**2)
             if r_prev < rbond:
                 broken.append((af_p.id, nbr_prev.id))
@@ -240,20 +238,21 @@ def get_stats(atom_forces, atom_forces_p, af_p, nbr_list_p, af, nbr_list, bounds
     formed = []
     for nbr_cur in nbr_list:
         if nbr_cur.id not in prev_ids:
+            
             dx, dy, dz = get_dxdydz(af, nbr_cur, bounds)
-            #dx, dy, dz = get_displ_pbr(af.x, nbr_cur.x, bounds.Lx), get_displ_pbr(af.y, nbr_cur.y, bounds.Ly), get_displ_pbr(af.z, nbr_cur.z, bounds.Lz)
             r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
+            
             if r_cur < rbond:
                 formed.append((af, nbr_cur))
             nbr_id = nbr_cur.id
             af_nbr_p = atom_forces_p[nbr_id - 1] 
             assert af_nbr_p.id == nbr_cur.id
             af_nbr = nbr_cur
+            
             dx, dy, dz = get_dxdydz(af_p, af_nbr_p, bounds_p)
-            #dx, dy, dz = get_displ_pbr(af_p.x, af_nbr_p.x, bounds_p.Lx), get_displ_pbr(af_p.y, af_nbr_p.y, bounds_p.Ly), get_displ_pbr(af_p.z, af_nbr_p.z, bounds_p.Lz)
             r_prev = math.sqrt( dx**2 + dy**2 + dz**2 )
+            
             dx, dy, dz = get_dxdydz(af, af_nbr, bounds)
-            #dx, dy, dz = get_displ_pbr(af.x, af_nbr.x, bounds.Lx), get_displ_pbr(af.y, af_nbr.y, bounds.Ly), get_displ_pbr(af.z, af_nbr.z, bounds.Lz)
             r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
             flag = maxchange_criteria(r_prev, r_cur, delta_r)
             if flag == 1: 
@@ -319,9 +318,10 @@ def visualize_neighbors(atom_forces, bounds):
     ax = Axes3D(fig)
     for af in atom_forces:
         for nbr in af.neighbors:
-            x_next = af.x + get_displ_pbr(nbr.x, af.x, bounds.Lx)
-            y_next = af.y + get_displ_pbr(nbr.y, af.y, bounds.Ly)
-            z_next = af.z + get_displ_pbr(nbr.z, af.z, bounds.Lz)
+            dx, dy, dz = get_dxdydz(nbr, af, bounds)
+            x_next = af.x + dx
+            y_next = af.y + dy
+            z_next = af.z + dz
             if af.id - nbr.id == -1 or af.id - nbr.id == 1:
                 ax.plot([af.x, x_next], [af.y, y_next], [af.z, z_next], color = 'black')
             else:
@@ -1120,10 +1120,10 @@ def plot_stresszz_d(all_res, times, v, type):
     '''
 
 
-def plot_changes(ds, ccfrac, cefrac, contactd, percent):
+def plot_changes(ds, ccfrac, cefrac, contactd, delta_r):
     cfrac = [ccfrac[i] + cefrac[i] for i in range(len(ccfrac))]
     fig = plt.figure()
-    #plt.title("Changes by %g %% vs displacement of the tip" %(100*percent))
+    plt.title("Changes by >= %g vs displacement of the tip" %(delta_r))
     plt.plot(ds, ccfrac, label = "Compressed")
     plt.plot(ds, cefrac, label = "Extended")
     plt.plot(ds, cfrac,  label = "Changed" )
@@ -1201,14 +1201,14 @@ def visualize_lj_bond_stats(css):
     print("data count", data_count)
     data = np.zeros( (data_count, 8) )
     ds = []
-    percent = 0.2
+    delta_r = 0.3
     contactd = 100000000000
     filename = vis_data_path + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     filenameinteractions = vis_data_path + 'pairids_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     filename_heat = out_data_path + "conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(css.M, css.N, css.T, css.r, css.cang)
-    changes_filename = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, 100*percent, step)
-    breaks_filename = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  100*percent, step)
-    vischanges_filename = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, 100*percent)
+    changes_filename = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, delta_r, step)
+    breaks_filename = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  delta_r, step)
+    vischanges_filename = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
     #remove files if they already exist
     remove_file(changes_filename)
     remove_file(breaks_filename)
@@ -1220,7 +1220,7 @@ def visualize_lj_bond_stats(css):
     for t_start in range(t_init, t_final, t_step):
         t_end = t_start + t_step + step - 1
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
-        pair_counts = construct_neighbors(all_res, all_bounds, glass, rc)
+        pair_counts = construct_neighbors(all_res, all_bounds, atype, rc)
         #all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
         #for i in range(len(all_res)):
         #    test_neighbor_lists(all_res[i][glass], all_inter[i], glass, all_bounds[i], rc)
@@ -1231,7 +1231,7 @@ def visualize_lj_bond_stats(css):
         #    reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent)
         #if idx < t_final:
         #    contactd = min(contactd, times[idx]*vz*dt)
-        changes_comp, changes_ext, breaks, formations, comp_then_ext, ext_then_comp = get_lj_bond_stats(all_res, glass, all_bounds, percent, step)
+        changes_comp, changes_ext, breaks, formations, comp_then_ext, ext_then_comp = get_lj_bond_stats(all_res, glass, all_bounds, delta_r, step)
         for i in range(len(changes_comp)):
             if j >= data_count: break
             data[j, 0] = times[i]
@@ -1255,8 +1255,8 @@ def visualize_lj_bond_stats(css):
         print("t start: %d\n" %t_start, flush=True)
         gc.collect() #
     print(len(ds), len(ffrac))
-    save_bond_change_stats(data, "test.txt")
-    plot_changes(ds, ccfrac, cefrac, contactd, percent)
+    save_bond_change_stats(data, "stats_M%d_N%d_T%g_r%d_cang%d_p%g.txt" %(css.M, css.N, css.T, css.r, css.cang, delta_r))
+    plot_changes(ds, ccfrac, cefrac, contactd, delta_r)
     plt.plot(ds, comp_ext_frac, label = "CE")
     plt.plot(ds, ext_comp_frac, label = "EC")
     plt.legend()

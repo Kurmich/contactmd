@@ -123,9 +123,6 @@ def create_neighbor_lists(atom_forces, bounds, rc):
                                     nbr_af = atom_forces[nbr_af_idx]
                                     if af.id < nbr_af.id:
                                         dx, dy, dz = get_dxdydz(af, nbr_af, bounds)
-                                        #dx = get_displ_pbr(af.x, nbr_af.x, bounds.Lx)
-                                        #dy = get_displ_pbr(af.y, nbr_af.y, bounds.Ly)
-                                        #dz = get_displ_pbr(af.z, nbr_af.z, bounds.Lz)
                                         rsq = dx**2 + dy**2 + dz**2
                                         if rsq < rc_sq:
                                             af.neighbors.append(nbr_af)
