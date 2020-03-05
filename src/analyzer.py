@@ -1267,7 +1267,7 @@ def visualize_lj_bond_stats(css):
         for item in rate:
             f.write("%s\n" %item)
     
-    if css.T < 0.01:
+    if css.T < 0.3:
         scale =  0.8214 * 0.00000416
         heat_stats(filename_heat, scale, step)
     plt.savefig(changes_filename)

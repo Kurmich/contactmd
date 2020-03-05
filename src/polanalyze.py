@@ -96,7 +96,8 @@ class PolymerMelt:
         for polymer in self.polymers:
             for mi in range(len(polymer.monomers)):
                 mon = polymer.monomers[mi]
-                atom_line = "%d %d %d %g %g %g %d %d %d\n" % (mon.mon_id, polymer.pol_id, mon.type, mon.x, mon.y, mon.z, 0, 0, 0)
+                pol_id = polymer.pol_id if mon.mol_id == -1 else mon.mol_id
+                atom_line = "%d %d %d %g %g %g %d %d %d\n" % (mon.mon_id, pol_id, mon.type, mon.x, mon.y, mon.z, 0, 0, 0)
                 vel_line = "%d %g %g %g\n" %(mon.mon_id, mon.vx, mon.vy, mon.vz)
                 atom_lines.append(atom_line)
                 vel_lines.append(vel_line)
@@ -125,6 +126,20 @@ class PolymerMelt:
         d.headers = self.headers
         d.sections = self.sections
         d.write(filename)
+    
+    def mountain_mol_ids(self):
+        '''This is required for Monte-Carlo swaps during equilibration'''
+        for polymer in self.polymers:
+            N = len(polymer.monomers)
+            lo, hi = 0, N-1
+            i = 1
+            while lo <= hi:
+                polymer.monomers[lo].mol_id = i
+                polymer.monomers[hi].mol_id = i
+                lo += 1
+                hi -= 1
+                i  += 1
+
     def plot_mean_square(self, c, lbl):
         b = 0.97        
         r2 = [0 for i in range(self.monomer_count-1)]
@@ -183,6 +198,30 @@ class PolymerMelt:
         if dx > L/2:
             dx = -(L - dx)
         return sign * dx
+    
+    def get_Florys_ratio(self):
+        count      = 0
+        sum_cosine = 0
+        for polymer in self.polymers:
+            for mi in range(len(polymer.monomers)-2):
+                mon_cur       = polymer.monomers[mi]
+                mon_next      = polymer.monomers[mi+1]
+                mon_next_next = polymer.monomers[mi+2]
+                dx1 = self.get_displ_pbr(mon_next.x, mon_cur.x, self.Lx)
+                dy1 = self.get_displ_pbr(mon_next.y, mon_cur.y, self.Ly)
+                dz1 = self.get_displ_pbr(mon_next.z, mon_cur.z, self.Lz)
+                dx2 = self.get_displ_pbr(mon_next_next.x, mon_next.x, self.Lx)
+                dy2 = self.get_displ_pbr(mon_next_next.y, mon_next.y, self.Ly)
+                dz2 = self.get_displ_pbr(mon_next_next.z, mon_next.z, self.Lz)
+                num = dx1 * dx2 + dy1 * dy2 + dz1 * dz2
+                den = ((dx1**2 + dy1**2 + dz1**2) * (dx2**2 + dy2**2 + dz2**2))**(1/2)
+                sum_cosine += (num/den)
+                count   += 1
+        exp_cosine = sum_cosine/count #expectation value of bond angle
+        c_inf = (1 + exp_cosine) / (1 - exp_cosine)
+        print("Florys characteristic ratio: %g" %c_inf)
+        return c_inf
+                
 
 class Polymer:
     def __init__(self, pol_id):
@@ -197,6 +236,7 @@ class Monomer:
         self.type = type
         self.x, self.y, self.z = x, y, z
         self.vx, self.vy, self.vz = vx, vy, vz
+        self.mol_id = -1
         
 class Node:
     def __init__(self):
@@ -363,20 +403,37 @@ def read_goal(filename):
 
 #def get_edge_avg(atom_forces):
 
+
+def add_angles(M, N):
+    #'''  
+    filename = "../lammpsinput/melt_stiff_wallz_M%d_N%d.data" %(M,N)
+    graph, headers, sections = get_graph(filename, M, N)
+    polymers = graph.group_polymers()
+    pol_melt = PolymerMelt(polymers, headers, sections)
+    pol_melt.mountain_mol_ids()
+    pol_melt.get_Florys_ratio()
+    pol_melt.write_sections()
+    pol_melt.write_lammps_file("../lammpsinput/melt_wallz_stiff_M%d_N%d.data" %(M,N))
+    pol_melt.plot_mean_square('b', 'Initial')
+
 def main():
     xs, ys = read_goal("goal.txt")
-#    return
     M = 2000
     N = 256
     T = 0.0001
-    #'''  
-    filename = "../lammpsinput/melt_wallz_M%d_N%d.data" %(M,N)
+    add_angles(M, N)
+#    return
+    '''
+   
+  
+    filename = "../lammpsinput/melt_stiff_wallz_M%d_N%d.data" %(M,N)
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.write_sections()
     pol_melt.write_lammps_file("../lammpsinput/melt_wallz_stiff_M%d_N%d.data" %(M,N))
-    pol_melt.plot_mean_square('b', 'Initial')
+    pol_melt.plot_mean_square('b', 'Initial')'''
+    
     '''
     filename = "../lammpsinput/data_quenched_M%d_N%d_T%g" %(M,N,T)
     graph, headers, sections = get_graph(filename, M, N)
