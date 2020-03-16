@@ -21,6 +21,21 @@ Lx, Ly = params[(M,N)][0], params[(M,N)][1]
 
 
 
+def running_average(arr, Nevery, Nrepeat, period):
+    avgs = []
+    for i in range(period, len(arr)):
+        idx = i
+        count = 1
+        cur_sum = 0
+        while count <= Nrepeat:
+            cur_sum += arr[idx]
+            idx     -= Nevery
+            count   += 1
+        avgs.append(cur_sum / Nrepeat)
+        
+    for i in range(period, len(arr)):
+        arr[i] = avgs[i-period]
+
 def heat_stats(filename, scale, step):
     N = 100000
     max_time = 1000000000000
@@ -28,6 +43,8 @@ def heat_stats(filename, scale, step):
     vz = 0.0001
     times, fzs, fys, pes  = [], [], [], []
     del_N = step * 20000
+    Nevery = 200
+    Nrepeat = 100
     with open(filename, 'r') as file:
         for line in file:
             words = line.strip().split()
@@ -46,8 +63,14 @@ def heat_stats(filename, scale, step):
     print(N, len(times), times[-1], times[0])
     t0 = times[0]
     del_t = times[1] - times[0]
-    heat = [ fzs[i]-fzs[i-1] for i in range(1, len(fzs))]
+    Nevery = int(Nevery/del_t)
+    running_average(fzs, Nevery, Nrepeat, del_N)
+    running_average(pes, Nevery, Nrepeat, del_N)
+    #running_average(arr, Nevery, Nrepeat, del_N)
+    
+    #heat = [ fzs[i]-fzs[i-1] for i in range(1, len(fzs))]
     dws  = [fzs[i] * vz *dt * del_t   for i in range(0, len(fzs))]
+    
     cum_works = []
     cum_work = 0
     for dw in dws:
@@ -62,6 +85,8 @@ def heat_stats(filename, scale, step):
         us.append( scale * (pes[i] - pes[i-del_N]) )
         ws.append(scale*(cum_works[i] - cum_works[i-del_N]))
     newtimes = [t - t0 for t in times]
+    for i in range(len(qs)):
+        qs[i] += 0.005
     plt.plot(ds, qs, label = "-Q", color = 'black')
     #plt.plot(ds, us, label = "$\Delta U$")
     #plt.plot(ds, ws, label = "W")
@@ -69,7 +94,7 @@ def heat_stats(filename, scale, step):
     plt.ylabel("$-Q, Frac$")
     #plt.ylabel("$Q, W, \Delta U$")
     plt.legend()
-    plt.show() 
+    
 
 
 def motion_stats(filename):
@@ -106,7 +131,55 @@ def motion_stats(filename):
     plt.ylabel("$log(<x^2>)$")
     plt.legend()
     plt.show()
+
+def plot_changes(ds, ccfrac, cefrac, contactd, delta_r):
+    cfrac = [ccfrac[i] + cefrac[i] for i in range(len(ccfrac))]
+    #fig = plt.figure()
+    plt.title("Changes by >= %g vs displacement of the tip" %(delta_r))
+    plt.plot(ds, ccfrac, label = "Compressed")
+    plt.plot(ds, cefrac, label = "Extended")
+    plt.plot(ds, cfrac,  label = "Changed" )
+    plt.axvline(x=contactd, color = 'red', label = "Contact point: %g" %contactd)
+    plt.xlabel("d")
+    plt.ylabel("Fraction")
+    plt.legend()
+    #plt.show()
+
+def plot_breaks(ds, bfrac, ffrac, contactd):
+    plt.title("Broken and formed bond fractions  vs displacement of the tip")
+    plt.plot(ds, bfrac, label = "Broke")
+    plt.plot(ds, ffrac, label = "Formed")
+    plt.xlabel("d")
+    plt.ylabel("Fraction")
+    plt.axvline(x=contactd, color = 'red', label = "Contact point: %g" %contactd)
+    plt.legend()
+    #plt.show()
+
+def bond_change_stats(filename):
+    comp_frac, ext_frac, bfrac, ffrac  = [], [], [], []
+    comp_ext_frac, ext_comp_frac = [], []
+    ds = []
+    vz = 0.0001
+    dt = 0.01
+    delta_r = 0.03
+    contactd = 3
+    with open(filename, 'r') as file:
+        for line in file:
+            words = line.strip().split()
+            if words[0] == "time":
+                print(line)
+                continue
+            t, comp, ext, breaks, forms, ce, ec, pair_count = map(int, words)
+            ds.append(vz * (t*dt))
+            comp_frac.append(comp / pair_count)
+            ext_frac.append(ext / pair_count)
+            bfrac.append(breaks / pair_count)
+            ffrac.append(forms / pair_count)
+            comp_ext_frac.append(ce / pair_count)
+            ext_comp_frac.append(ec / pair_count)
+    plot_changes(ds, comp_frac, ext_frac, contactd, delta_r)
     
+   
 def main():
     M, N = 2000, 256
     T = 0.2
@@ -114,7 +187,10 @@ def main():
     #filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
     #motion_stats(filename)
     filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT.txt" %(M, N, T, R, cang)
-    heat_stats(filename, 0.8214 * 0.00000416, 1)
+    heat_stats(filename, 0.8214 * 0.00000416 * 4.5, 1)
+    filename = "../visfiles/stats_M2000_N256_T0.2_r10_cang45_p0.3.txt"
+    bond_change_stats(filename)
+    plt.show()
     
     
 if __name__ == "__main__":

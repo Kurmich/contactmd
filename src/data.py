@@ -187,9 +187,10 @@ class data:
                     if keyword not in self.headers.keys():
                         self.headers[keyword] = 0
                     self.headers[keyword] += other.headers[keyword]
-        atom_count = old_headers["atoms"]
-        atom_type_count = old_headers["atom types"]
-        bond_type_count = old_headers["bond types"]
+        atom_count       = old_headers["atoms"]
+        atom_type_count  = old_headers["atom types"]
+        bond_type_count  = old_headers["bond types"]
+        angle_type_count = 0 if "angle types" not in old_headers else old_headers["angle types"] 
         for pair in skeywords:
             keyword = pair[0]
             if keyword in other.sections.keys():
@@ -203,9 +204,14 @@ class data:
                         words[z_idx] = str( float(words[z_idx]) + delta_z + sep_z )
                         words[type_idx] = str(int(words[type_idx]) + atom_type_count)
                     if keyword == "bonds" or keyword == "Bonds":
-                        words[1] = str( int(words[1]) + bond_type_count)
+                        words[1] = str( int(words[1]) +  bond_type_count)
                         words[2] = str( int(words[2]) +  atom_count)
                         words[3] = str( int(words[3]) +  atom_count)
+                    if keyword == "angles" or keyword == "Angles":
+                        words[1] = str( int(words[1]) +  angle_type_count)
+                        words[2] = str( int(words[2]) +  atom_count)
+                        words[3] = str( int(words[3]) +  atom_count)
+                        words[4] = str( int(words[4]) +  atom_count)
                     newline = ' '.join(words)
                     self.sections[keyword].append(newline)
                     self.sections[keyword].append('\n')
@@ -454,11 +460,11 @@ def main():
     cone_ang = 45
     Dx = 80
     sep_z = 2**(1/6) + 0.5
-    d = data("../lammpsinput/clean_quenched_M%d_N%d_T%g.data" %(M, N, T))
+    d = data("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g.data" %(M, N, T))
 #    d2 = data("../lammpsinput/flattip_Dx%d.dat" %(Dx))
     d2 = data("../lammpsinput/tip_r%d_Dx%d_cang%d.dat" %(r, Dx, cone_ang))
     d.append(d2, sep_z)
-    d.write("../lammpsinput/wtip_data_quenched_M%d_N%d_T%g_sphR%d_cang%d" %(M, N, T, r, cone_ang))
+    d.write("../lammpsinput/wtip_data_quenched_stiff_M%d_N%d_T%g_sphR%d_cang%d" %(M, N, T, r, cone_ang))
     print("sepz: %g" %sep_z)
 
 

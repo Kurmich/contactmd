@@ -415,13 +415,44 @@ def add_angles(M, N):
     pol_melt.write_sections()
     pol_melt.write_lammps_file("../lammpsinput/melt_wallz_stiff_M%d_N%d.data" %(M,N))
     pol_melt.plot_mean_square('b', 'Initial')
+    
+def clean_quenched_file(M, N, T):
+    xs, ys = read_goal("goal.txt")
+    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g_nve" %(M,N,T)
+    graph, headers, sections = get_graph(filename, M, N)
+    polymers = graph.group_polymers()
+    pol_melt = PolymerMelt(polymers, headers, sections)
+    pol_melt.write_sections()
+    pol_melt.get_Florys_ratio()
+    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g.data" %(M,N,T))
+#    d = data("eq_M%d_N%d.data" %(M, N))
+
+    pol_melt.plot_mean_square('r', 'Equilibrated')
+    plt.suptitle('Mean Square Internal Distances M: %d N: %d T: %g' %(M, N, T), fontsize = 20)
+    plt.plot(xs,ys, 'g', label='Target function')
+    plt.ylabel(r'$<R^2(n)>/n$', fontsize = 16)
+    plt.xlabel(r'$n$', fontsize = 16)
+    plt.legend()
+    plt.show()
+    pol_melt.plot_polymer(3)
+
+
+def check_equilibration(M, N):
+    filename = "../lammpsinput/melt_stiff_wallz_M%d_N%d.data" %(M,N)
+    graph, headers, sections = get_graph(filename, M, N)
+    polymers = graph.group_polymers()
+    pol_melt = PolymerMelt(polymers, headers, sections)
+    pol_melt.mountain_mol_ids()
+    pol_melt.get_Florys_ratio()
 
 def main():
     xs, ys = read_goal("goal.txt")
     M = 2000
     N = 256
-    T = 0.0001
-    add_angles(M, N)
+    T = 0.2
+    check_equilibration(M, N)
+    #add_angles(M, N)
+    #clean_quenched_file(M, N, T)
 #    return
     '''
    
