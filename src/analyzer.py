@@ -51,9 +51,9 @@ class ConesimSettings:
         self.t_step  = t_step  #us this much dumps for analysis at single iteration
         print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
         
-Temp = 0.2
+Temp = 0.0001
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(17, 20, 1)
+css.set_analysisvals(1, 150, 1)
 
   
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
@@ -1323,8 +1323,23 @@ def visualize_particles(css):
         #plt.plot(ts, val[2], label = "z" )
         #plt.plot(ts, val[3], label = "r" )
        
-    
-                
+
+def vis_hardness(css):
+    dt = css.dt
+    #cang = 45
+    tip_type = 2
+    glass = 1
+    types = [tip_type]
+    atype = glass
+    #rc = 1.5
+    vz = css.vz
+    d0 = 0 #2.2 
+    t_init, t_final = css.t_init, css.t_final
+    t_step = css.t_step
+    filename = '../visfiles/visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    all_res, bounds, times = get_interactions(filename, t_init, t_final, types, interacting = True)
+    plot_stresszz_d(all_res, times, vz, tip_type)
+             
             
 def remove_file(filename):
     try:
@@ -1338,7 +1353,8 @@ def main():
     #tip_type = 2
     #oligomer_type = 3
     #visualize_particles(css)
-    visualize_lj_bond_stats(css)
+    vis_hardness(css)
+    #visualize_lj_bond_stats(css)
     return
     M, N = 2000, 256
     r = 10
