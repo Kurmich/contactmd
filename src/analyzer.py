@@ -1275,8 +1275,46 @@ def visualize_lj_bond_stats(css):
     plot_breaks(ds, bfrac, ffrac, contactd)
     plt.savefig(breaks_filename)
     plt.close()
-    
 
+
+def dddd(atomic_forces, M, N, bounds):
+    rc = 1.5
+    rcsq = rc**2
+    broken_count  = 0
+    Rtot = 0.0
+    for i in range(0, M*N, N):
+        Rx, Ry, Rz = 0, 0, 0
+        for j in range(i, i+N-1):
+            af_cur  = atomic_forces[j]
+            af_next = atomic_forces[j+1]
+            dx, dy, dz = get_dxdydz(af_next, af_cur, bounds)
+            Rx += dx
+            Ry += dy
+            Rz += dz
+            rsq = dx*dx + dy*dy + dz*dz
+            if rcsq < rsq:
+                broken += 1
+        R    = ( Rx*Rx + Ry*Ry + Rz*Rz )**(1/2)
+        Rtot += R
+    Rave = Rtot/M
+    return Rave, broken
+def visualize_lengths(css):
+    
+    for t_start in range(t_init, t_final, t_step):
+        t_end = t_start + t_step + step - 1
+        all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
+        #pair_counts = construct_neighbors(all_res, all_bounds, atype, rc)
+        for i in range(len(changes_comp)):
+            if j >= data_count: break
+            data[j, 0] = times[i]
+            data[j, 1] = changes_comp[i]
+            data[j, 2] = changes_ext[i]
+            data[j, 3] = breaks[i]
+            data[j, 4] = formations[i]
+            data[j, 5] = comp_then_ext[i]
+            data[j, 6] = ext_then_comp[i]
+            data[j, 7] = pair_counts[i]
+            j          += 1
 
 def visualize_particles(css):
     dt = css.dt
