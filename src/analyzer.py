@@ -44,7 +44,7 @@ class ConesimSettings:
         self.vz = vz     #velocity of the cone
         self.dt = dt     #timestep of the simulation
         print("Simulation settings used for analysis")
-        print("M : %d, N: %d, T: %g, r: %g, cang: %g, vz: %g, dt: %g" %(M, N, T, r, cang, vz, dt))
+        print("M : %d, N: %d, T: %g, r: %g, cang: %g, vz: %g, dt: %g" %(M, N, T, r, cang, vz, dt), flush = True)
     def set_analysisvals(self, t_init, t_final, t_step):
         self.t_init  = t_init  #analysis starts from this dump 
         self.t_final = t_final #analysis continue until this dump
@@ -53,7 +53,7 @@ class ConesimSettings:
         
 Temp = 0.0001
 css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(1, 150, 1)
+css.set_analysisvals(1, 10, 1)
 
   
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
@@ -1277,11 +1277,14 @@ def visualize_lj_bond_stats(css):
     plt.close()
 
 
-def dddd(atomic_forces, M, N, bounds):
+def get_average_stretches(atomic_forces, M, N, bounds):
+    '''Assumption atom_forces are sorted by id 
+    and M chains are of length N first polymer (chain) is at idx location 0:N-1'''
     rc = 1.5
     rcsq = rc**2
     broken_count  = 0
     Rtot = 0.0
+    Rs = np.zeros([M, 1])
     for i in range(0, M*N, N):
         Rx, Ry, Rz = 0, 0, 0
         for j in range(i, i+N-1):
@@ -1293,28 +1296,45 @@ def dddd(atomic_forces, M, N, bounds):
             Rz += dz
             rsq = dx*dx + dy*dy + dz*dz
             if rcsq < rsq:
-                broken += 1
-        R    = ( Rx*Rx + Ry*Ry + Rz*Rz )**(1/2)
-        Rtot += R
-    Rave = Rtot/M
-    return Rave, broken
-def visualize_lengths(css):
+                broken_count += 1
+        idx = int(i/N)
+        Rs[idx]    = ( Rx*Rx + Ry*Ry + Rz*Rz )**(1/2)
     
+    R_ave = np.mean(Rs)
+    #print(R_ave)
+    R_std_err = np.std(Rs) / len(Rs)**(1/2)
+    return R_ave, R_std_err, broken_count
+
+def visualize_stretches(css):
+    glass = 1
+    atype = glass
+    types = [atype]
+    t_init, t_final = css.t_init, css.t_final
+    t_step = css.t_step
+    vz = css.vz
+    d0 = 0
+    R_avgs, R_stderrs = [], []
+    chain_breaks = []
+    ds = []
+    filename = vis_data_path + 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     for t_start in range(t_init, t_final, t_step):
-        t_end = t_start + t_step + step - 1
+        t_end = t_start + t_step - 1
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
-        #pair_counts = construct_neighbors(all_res, all_bounds, atype, rc)
-        for i in range(len(changes_comp)):
-            if j >= data_count: break
-            data[j, 0] = times[i]
-            data[j, 1] = changes_comp[i]
-            data[j, 2] = changes_ext[i]
-            data[j, 3] = breaks[i]
-            data[j, 4] = formations[i]
-            data[j, 5] = comp_then_ext[i]
-            data[j, 6] = ext_then_comp[i]
-            data[j, 7] = pair_counts[i]
-            j          += 1
+        for i in range(len(all_res)):
+            res                      = all_res[i]
+            bounds                   = all_bounds[i]
+            time                     = times[i]
+            atomic_forces            = res[atype]
+            Rave, R_std_err, broken  = get_average_stretches(atomic_forces, css.M, css.N, bounds)
+            R_avgs.append(Rave)
+            R_stderrs.append(R_std_err)
+            chain_breaks.append(broken)
+        ds.extend([vz * css.dt * times[i] - d0   for i in range(len(times))])
+    with open("stretches_stiff_T%g.txt" %(css.T),'w') as f:
+        for i in range(len(ds)):
+            f.write("%g %g %g %g\n" %(ds[i], R_avgs[i], R_stderrs[i], chain_breaks[i]))
+    plt.plot(ds, R_avgs)
+    plt.show()
 
 def visualize_particles(css):
     dt = css.dt
@@ -1391,7 +1411,8 @@ def main():
     #tip_type = 2
     #oligomer_type = 3
     #visualize_particles(css)
-    vis_hardness(css)
+    visualize_stretches(css)
+    #vis_hardness(css)
     #visualize_lj_bond_stats(css)
     return
     M, N = 2000, 256
