@@ -4,6 +4,7 @@ from scipy import stats
 from scipy.spatial import ConvexHull
 from scipy.spatial import KDTree
 import os
+import argparse
 from thermoparser import heat_stats
 from boxcell import *
 import gc
@@ -17,11 +18,12 @@ d = 2.0**(1.0/6.0) * sigma
 atom_N = [1, 2, 3, 4]
 epsilon = 0.000001
 vis_data_path = '../visfiles/'
-out_data_path = '../visfiles/'
+out_data_path = '../outputfiles/'
 #idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
 #vis_data_path = '/home/kkurman1/equilibrate/identtip/visfiles/'
 #out_data_path =  '/home/kkurman1/equilibrate/identtip/outputfiles/'
-
+#vis_data_path = '/home/kkurman1/GlassExperiments/stiff/indentation/visfiles/'
+#out_data_path =  '/home/kkurman1/GlassExperiments/stiff/indentation//outputfiles/'
 
 
 
@@ -33,6 +35,20 @@ class SimulationSettings:
         self.R = R
         self.d = d
 
+
+class FileNames:
+    def __init__(self, M, N, T, r, cang, stiff, deltar):
+        name  = 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang) if stiff else 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+        self.vis   = vis_data_path + name
+        name  = 'pairids_stiff_M%d_N%d_T%g_r%d_cang%d.out'   %(css.M, css.N, css.T, css.r, css.cang) if stiff else 'pairids_M%d_N%d_T%g_r%d_cang%d.out'   %(css.M, css.N, css.T, css.r, css.cang)
+        self.inter = vis_data_path + name
+        name  = 'conetip_stiff_M%d_N%d_T%g_r%d_cang%d_nve.txt'   %(css.M, css.N, css.T, css.r, css.cang) if stiff else 'conetip_M%d_N%d_T%g_r%d_cang%d_nve.txt'   %(css.M, css.N, css.T, css.r, css.cang)
+        self.heat  = out_data_path + name
+        name  = 'stats_stiff_M%d_N%d_T%g_r%d_cang%d.out'   %(css.M, css.N, css.T, css.r, css.cang) if stiff else 'stats_M%d_N%d_T%g_r%d_cang%d.out'   %(css.M, css.N, css.T, css.r, css.cang)
+        self.stats  = out_data_path + name
+        #changes = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, delta_r, step)
+        #breaks = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  delta_r, step)
+        #vis_changes = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
 
 class ConesimSettings:
     def __init__(self, M, N, T, r, cang, vz, dt):
@@ -52,9 +68,10 @@ class ConesimSettings:
         print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
         
 Temp = 0.0001
-css = ConesimSettings(2000, 256, Temp, 10, 45, 0.0001, 0.01)
-css.set_analysisvals(1, 10, 1)
-
+is_stiff = True
+css = ConesimSettings(2000, 256, Temp, 30, 30, 0.0001, 0.01)
+css.set_analysisvals(1, 2, 1)
+filenames = FileNames(2000, 256, Temp, 30, 30, is_stiff, 0.3)
   
 def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
     '''If average positions are dumped this method is to reconstruct'''
@@ -1203,9 +1220,9 @@ def visualize_lj_bond_stats(css):
     ds = []
     delta_r = 0.3
     contactd = 100000000000
-    filename = vis_data_path + 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
-    filenameinteractions = vis_data_path + 'pairids_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
-    filename_heat = out_data_path + "conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(css.M, css.N, css.T, css.r, css.cang)
+    filename             = filenames.vis
+    filenameinteractions = filenames.inter
+    filename_heat        = filenames.heat
     changes_filename = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, delta_r, step)
     breaks_filename = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  delta_r, step)
     vischanges_filename = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
@@ -1255,7 +1272,7 @@ def visualize_lj_bond_stats(css):
         print("t start: %d\n" %t_start, flush=True)
         gc.collect() #
     print(len(ds), len(ffrac))
-    save_bond_change_stats(data, "stats_M%d_N%d_T%g_r%d_cang%d_p%g.txt" %(css.M, css.N, css.T, css.r, css.cang, delta_r))
+    save_bond_change_stats(data, filenames.stats)
     plot_changes(ds, ccfrac, cefrac, contactd, delta_r)
     plt.plot(ds, comp_ext_frac, label = "CE")
     plt.plot(ds, ext_comp_frac, label = "EC")
@@ -1306,6 +1323,7 @@ def get_average_stretches(atomic_forces, M, N, bounds):
     return R_ave, R_std_err, broken_count
 
 def visualize_stretches(css):
+    print("Visualizing stretches")
     glass = 1
     atype = glass
     types = [atype]
@@ -1316,7 +1334,7 @@ def visualize_stretches(css):
     R_avgs, R_stderrs = [], []
     chain_breaks = []
     ds = []
-    filename = vis_data_path + 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    filename = filenames.vis
     for t_start in range(t_init, t_final, t_step):
         t_end = t_start + t_step - 1
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
@@ -1330,7 +1348,7 @@ def visualize_stretches(css):
             R_stderrs.append(R_std_err)
             chain_breaks.append(broken)
         ds.extend([vz * css.dt * times[i] - d0   for i in range(len(times))])
-    with open("stretches_stiff_T%g.txt" %(css.T),'w') as f:
+    with open("stretches_stiff_M%d_N%d_T%g_r%d_cang%d.txt" %(css.M, css.N, css.T, css.r, css.cang),'w') as f:
         for i in range(len(ds)):
             f.write("%g %g %g %g\n" %(ds[i], R_avgs[i], R_stderrs[i], chain_breaks[i]))
     plt.plot(ds, R_avgs)
@@ -1383,6 +1401,7 @@ def visualize_particles(css):
        
 
 def vis_hardness(css):
+    print("Visualizing hardness")
     dt = css.dt
     #cang = 45
     tip_type = 2
@@ -1394,7 +1413,7 @@ def vis_hardness(css):
     d0 = 0 #2.2 
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
-    filename = '../visfiles/visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    filename = vis_data_path + 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
     all_res, bounds, times = get_interactions(filename, t_init, t_final, types, interacting = True)
     plot_stresszz_d(all_res, times, vz, tip_type)
              
@@ -1406,14 +1425,21 @@ def remove_file(filename):
         pass
     
 def main():
+    parser = argparse.ArgumentParser(description = "Contact analysis")
+    parser.add_argument('--stiff', action = 'store_true',    help = 'is polymer stiff')
+    parser.add_argument('--M', type=int,   default = 2000,   help = '# of chains in a melt')
+    parser.add_argument('--N', type=int,   default = 256,    help = '# of monomers per chain')
+    parser.add_argument('--T', type=float, default = 0.0001, help = 'Temperature of the system')
+    args = parser.parse_args()
+    print(args.stiff, args.M)
     #plot_nforce_vs_cont_area()
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
     #visualize_particles(css)
-    visualize_stretches(css)
+    #visualize_stretches(css)
     #vis_hardness(css)
-    #visualize_lj_bond_stats(css)
+    visualize_lj_bond_stats(css)
     return
     M, N = 2000, 256
     r = 10

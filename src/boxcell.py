@@ -151,9 +151,6 @@ def test_neighbor_lists(atom_forces, pair_ids, atype, bounds, rc):
                 break
         if miss:
             dx, dy, dz = get_dxdydz(af1, af2, bounds)
-            #dx = get_displ_pbr(af1.x, af2.x, bounds.Lx)
-            #dy = get_displ_pbr(af1.y, af2.y, bounds.Ly)
-            #dz = get_displ_pbr(af1.z, af2.z, bounds.Lz)
             print((dx**2 + dy**2 +dz**2)**(1/2))
             print(af1.x, af1.y, af1.z, af2.x, af2.y, af2.z)
             mismatch_count += 1

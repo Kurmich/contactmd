@@ -186,9 +186,9 @@ def main():
     R, cang = 10, 45
     #filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
     #motion_stats(filename)
-    filename = "../visfiles//conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT.txt" %(M, N, T, R, cang)
+    filename = "../outputfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT.txt" %(M, N, T, R, cang)
     heat_stats(filename, 0.8214 * 0.00000416 * 4.5, 1)
-    filename = "../visfiles/stats_M2000_N256_T0.2_r10_cang45_p0.3.txt"
+    filename = "../outputfiles/stats_M2000_N256_T0.2_r10_cang45_p0.3.txt"
     bond_change_stats(filename)
     plt.show()
     

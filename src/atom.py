@@ -9,6 +9,10 @@ class Atom:
         self.mol_id = 1000000
     def set_id(self, id):
         self.id = id
+    def set_velocity(self, vx, vy, vz):
+        self.vx = vx
+        self.vy = vy
+        self.vz = vz
     def set_molecule_id(self, mol_id):
         self.mol_id = mol_id
     def shift_coordinates(self, dx, dy, dz ):

@@ -418,7 +418,7 @@ def add_angles(M, N):
     
 def clean_quenched_file(M, N, T):
     xs, ys = read_goal("goal.txt")
-    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g_nve" %(M,N,T)
+    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g" %(M,N,T)
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
@@ -449,10 +449,10 @@ def main():
     xs, ys = read_goal("goal.txt")
     M = 2000
     N = 256
-    T = 0.2
-    check_equilibration(M, N)
+    T = 0.0001
+    #check_equilibration(M, N)
     #add_angles(M, N)
-    #clean_quenched_file(M, N, T)
+    clean_quenched_file(M, N, T)
 #    return
     '''
    
