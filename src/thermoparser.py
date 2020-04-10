@@ -87,6 +87,7 @@ def heat_stats(filename, scale, step):
     newtimes = [t - t0 for t in times]
     for i in range(len(qs)):
         qs[i] += 0.005
+    
     plt.plot(ds, qs, label = "-Q", color = 'black')
     #plt.plot(ds, us, label = "$\Delta U$")
     #plt.plot(ds, ws, label = "W")
@@ -162,7 +163,7 @@ def bond_change_stats(filename):
     vz = 0.0001
     dt = 0.01
     delta_r = 0.03
-    contactd = 3
+    contactd = 7
     with open(filename, 'r') as file:
         for line in file:
             words = line.strip().split()
@@ -177,6 +178,7 @@ def bond_change_stats(filename):
             ffrac.append(forms / pair_count)
             comp_ext_frac.append(ce / pair_count)
             ext_comp_frac.append(ec / pair_count)
+    
     plot_changes(ds, comp_frac, ext_frac, contactd, delta_r)
     
    

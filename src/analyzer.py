@@ -7,15 +7,8 @@ import os
 import argparse
 from thermoparser import heat_stats
 from boxcell import *
+from dumpparser import *
 import gc
-forces = [500.0]
-poisson = 0.5
-G_shear_mod = 16.0
-E_star = 1#4 * G_shear_mod
-R = 1000.0
-sigma = 1.0 #2**(1/6)
-d = 2.0**(1.0/6.0) * sigma
-atom_N = [1, 2, 3, 4]
 epsilon = 0.000001
 vis_data_path = '../visfiles/'
 out_data_path = '../outputfiles/'
@@ -24,7 +17,6 @@ out_data_path = '../outputfiles/'
 #out_data_path =  '/home/kkurman1/equilibrate/identtip/outputfiles/'
 #vis_data_path = '/home/kkurman1/GlassExperiments/stiff/indentation/visfiles/'
 #out_data_path =  '/home/kkurman1/GlassExperiments/stiff/indentation//outputfiles/'
-
 
 
 class SimulationSettings:
@@ -37,14 +29,31 @@ class SimulationSettings:
 
 
 class FileNames:
-    def __init__(self, M, N, T, r, cang, stiff, deltar):
-        name  = 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang) if stiff else 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    def __init__(self, M, N, T, r, cang, stiff, is_cone):
+        if is_cone:
+            self.make_conetip_names(M, N, T, r, cang, stiff)
+        else:
+            self.make_spheretip_names(M, N, T, r, stiff)
+    def make_conetip_names(self, M, N, T, r, cang, stiff):
+        name  = 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out' %(M, N, T, r, cang) if stiff else 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(M, N, T, r, cang)
         self.vis   = vis_data_path + name
-        name  = 'pairids_stiff_M%d_N%d_T%g_r%d_cang%d.out'   %(css.M, css.N, css.T, css.r, css.cang) if stiff else 'pairids_M%d_N%d_T%g_r%d_cang%d.out'   %(css.M, css.N, css.T, css.r, css.cang)
+        name  = 'pairids_stiff_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang) if stiff else 'pairids_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang)
         self.inter = vis_data_path + name
-        name  = 'conetip_stiff_M%d_N%d_T%g_r%d_cang%d_nve.txt'   %(css.M, css.N, css.T, css.r, css.cang) if stiff else 'conetip_M%d_N%d_T%g_r%d_cang%d_nve.txt'   %(css.M, css.N, css.T, css.r, css.cang)
+        name  = 'conetip_stiff_M%d_N%d_T%g_r%d_cang%d_nve.txt'   %(M, N, T, r, cang) if stiff else 'conetip_M%d_N%d_T%g_r%d_cang%d_nve.txt'   %(M, N, T, r, cang)
         self.heat  = out_data_path + name
-        name  = 'stats_stiff_M%d_N%d_T%g_r%d_cang%d.out'   %(css.M, css.N, css.T, css.r, css.cang) if stiff else 'stats_M%d_N%d_T%g_r%d_cang%d.out'   %(css.M, css.N, css.T, css.r, css.cang)
+        name  = 'stats_stiff_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang) if stiff else 'stats_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang)
+        self.stats  = out_data_path + name
+        #changes = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, delta_r, step)
+        #breaks = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  delta_r, step)
+        #vis_changes = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
+    def make_spheretip_names(self, M, N, T, r, stiff):
+        name  = 'vis_sphere_stiff_M%d_N%d_T%g_r%d.out' %(M, N, T, r) if stiff else 'vis_sphere_M%d_N%d_T%g_r%d.out' %(M, N, T, r)
+        self.vis   = vis_data_path + name
+        name  = 'pairids_stiff_M%d_N%d_T%g_r%d.out'   %(M, N, T, r) if stiff else 'pairids_M%d_N%d_T%g_r%d.out'   %(M, N, T, r)
+        self.inter = vis_data_path + name
+        name  = 'conetip_stiff_M%d_N%d_T%g_r%d_nve.txt'   %(M, N, T, r) if stiff else 'conetip_M%d_N%d_T%g_r%d_nve.txt'   %(M, N, T, r)
+        self.heat  = out_data_path + name
+        name  = 'stats_stiff_M%d_N%d_T%g_r%d.out'   %(M, N, T, r) if stiff else 'stats_M%d_N%d_T%g_r%d.out'   %(M, N, T, r)
         self.stats  = out_data_path + name
         #changes = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, delta_r, step)
         #breaks = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  delta_r, step)
@@ -66,46 +75,16 @@ class ConesimSettings:
         self.t_final = t_final #analysis continue until this dump
         self.t_step  = t_step  #us this much dumps for analysis at single iteration
         print("Analysis starts from dump time: %g continues until: %g in steps of %g" %(t_init, t_final, t_step))
-        
+
+'''      
 Temp = 0.0001
 is_stiff = True
-css = ConesimSettings(2000, 256, Temp, 30, 30, 0.0001, 0.01)
-css.set_analysisvals(1, 2, 1)
-filenames = FileNames(2000, 256, Temp, 30, 30, is_stiff, 0.3)
-  
-def reconstuct_ave_lj_bonds(all_res, atype, all_bounds, percent):
-    '''If average positions are dumped this method is to reconstruct'''
+css = ConesimSettings(2000, 256, Temp, 0, 0, 0.0001, 0.01)
+css.set_analysisvals(1, 30, 1)
+filenames = FileNames(2000, 256, Temp, 0, 0, is_stiff)
+'''
+filenames, css = None, None
 
-    N = len(all_res)
-    rc = 1.5 #cut off radius
-    r_lim = 2*rc + 0.5  #cutoff after which dfs search for new neighbors ends 
-    for i in range(N):
-        bounds = all_bounds[i]
-        atom_forces = all_res[i][atype]
-        new_nbrs = {}
-        for af in atom_forces:
-            seen_ids = []
-            new_nbrs[af.id] = []
-            #print("Next atom")
-            for child_af in af.neighbors:
-                inser_new_nbrs(af, child_af, new_nbrs[af.id], seen_ids, rc, r_lim, bounds.Lx, bounds.Ly, bounds.Lz)
-        for af in atom_forces:
-            af.neighbors = new_nbrs[af.id]
-            
-            
-
-def inser_new_nbrs(root_af, child_af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz):
-    '''create a new neighbor list for root af such that neighbors are within <= rc'''
-    if child_af.id in seen_ids: return
-    dx, dy, dz = get_displ_pbr(root_af.x, child_af.x, Lx), get_displ_pbr(root_af.y, child_af.y, Ly), get_displ_pbr(root_af.z, child_af.z, Lz)
-    r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
-    seen_ids.append(child_af.id)
-    if r_cur > r_lim: return
-    if r_cur <= rc:
-        nbrs.append(child_af)
-    for af in child_af.neighbors:
-        inser_new_nbrs(root_af, af, nbrs, seen_ids, rc, r_lim, Lx, Ly, Lz )
-        
 memory_atom_forces_p = None
 
 def get_lj_bond_stats(all_res, atype, all_bounds, delta_r, step):
@@ -360,206 +339,7 @@ def plot_neighbor_changes(times,  changes_comp, changes_ext, breaks, formations,
     plt.legend()
     plt.show()
 
-def binary_search_up(atom_forces, max_r):
-    """Returns the index of atom located at radius closest to max_r (i.e. atom.radius <= max_r)"""
-    lo = 0
-    hi = len(atom_forces)
-    while hi - lo > 1:
-        mid = (hi + lo)//2
-        if atom_forces[mid].radius <= max_r:
-            lo = mid
-        else:
-            hi = mid
-    return lo
 
-
-def binary_search_low(atom_forces, min_r):
-    """Returns the index of atom located at radius closest to max_r (i.e. atom.radius <= max_r)"""
-    lo = -1
-    hi = len(atom_forces)-1
-    while hi - lo > 1:
-        mid = (hi + lo)//2
-        if atom_forces[mid].radius >= min_r:
-            hi = mid
-        else:
-            lo = mid
-    return hi
-
-
-def get_pair_interactions(filename, t_start, t_end):
-    assert t_start <= t_end
-    r_time = False
-    r_entry_count = False
-    r_boundary = False
-    r_entries = False
-    skip = False
-    d = 0
-    t = 0
-    pair_counts = []
-    all_pair_ids = []
-    res = []
-    with open(filename) as file:
-        for line in file:
-            #check what kind of data to expect in this line
-            if r_time:
-                time = int(line)
-                print("Time step: %d" %time)
-                r_time = False
-            elif r_entry_count:
-                count = int(line)
-                pair_counts.append(count)
-                res = []
-                print("# of pair ids: %d" %count)
-                r_entry_count = False
-            elif r_boundary:
-                d -= 1
-                r_boundary = False if d == 0 else True
-            elif r_entries:
-                if 'ITEM: TIMESTEP' in line:
-                    r_entries = False
-                else:
-                    #print("reading atoms")
-                   # print(len(line.split(' ')))
-                    if skip:
-                        continue
-                    line = line.strip()
-                    id1, id2  = line.split(' ')
-                    id1, id2 = int(id1), int(id2)
-                    res.append((id1, id2))
-                    
-
-            #set what kind of data to expect in next lines
-            if 'ITEM: TIMESTEP' in line:
-                if len(res) != 0:
-                    all_pair_ids.append(res)
-                r_time = True
-                t += 1
-                if t > t_end:
-                    break
-                if t < t_start:
-                    skip = True
-                else:
-                    skip = False
-                print("Next is timestep")
-            elif 'ITEM: NUMBER OF ENTRIES' in line:
-                r_entry_count = True
-                print("Next is number of entries")
-            elif 'ITEM: BOX BOUNDS' in line:
-                r_boundary = True
-                d = 3
-                print("Next 3 lines are bondaries")
-            elif 'ITEM: ENTRIES' in line:
-                r_entries = True
-                print("Pair id lines are coming")
-    return all_pair_ids, pair_counts
-
-def get_interactions(filename, t_start, t_end, types, interacting = False):
-    assert t_start <= t_end
-    r_time = False
-    r_atom_count = False
-    r_boundary = False
-    r_atoms = False
-    skip = False
-    dim = 0
-    t = 0
-    max_r = 0
-    pbcX, pbcY, pbcZ = False, False, False #boundary periodicity flags
-    all_res = []
-    all_bounds = []
-    times = []
-    cur_b = []
-    res = dict()
-    with open(filename) as file:
-        for line in file:
-            #check what kind of data to expect in this line
-            if r_time:
-                time = int(line)
-                times.append(time)
-                #print("Time step: %d" %time)
-                r_time = False
-            elif r_atom_count:
-                count = int(line)
-                res = dict()
-                #print("# of atoms: %d" %count)
-                r_atom_count = False
-            elif r_boundary:
-                if dim > 0:
-                    words = line.strip().split()
-                    lo, hi = map(float, words)
-                    if   dim == 3: bounds.set_x_bounds(lo, hi)
-                    elif dim == 2: bounds.set_y_bounds(lo, hi)
-                    elif dim == 1: bounds.set_z_bounds(lo, hi)
-                dim -= 1
-                if dim == 0:
-                    all_bounds.append(bounds)
-                    r_boundary = False
-            elif r_atoms:
-                if 'ITEM: TIMESTEP' in line:
-                    r_atoms = False
-                    r_time = True
-                else:
-                    #print("reading atoms")
-                   # print(len(line.split(' ')))
-                    if skip:
-                        continue
-                    line = line.strip()
-                    #print(line)
-                    #print(line.split(' ', 10))
-                    '''Return a list of the words in the string, using sep as the delimiter string. 
-                    If maxsplit is given, at most maxsplit splits are done (thus, the list will have at most maxsplit+1 elements). 
-                    If maxsplit is not specified or -1, then there is no limit on the number of splits (all possible splits are made).'''
-                    words = line.split(' ', 9)
-                    if len(words) > 9:
-                        a_id, mol, atype, x, y, z, fx, fy, fz, arributes  = words
-                    else:
-                        a_id, mol, atype, x, y, z, fx, fy, fz  = words
-                    a_id, mol, atype, x, y, z, fx, fy, fz = int(a_id), int(mol), int(atype), float(x), float(y), float(z), float(fx), float(fy), float(fz)
-                    if atype not in types: continue
-                    if interacting and abs(fx) < epsilon and abs(fy) < epsilon and abs(fz) < epsilon: continue
-                    #choose interacting atoms
-                    radius = math.sqrt(x**2 + y**2)
-                    if atype not in res: res[atype] = []
-                    res[atype].append(AtomicForces(a_id, mol, atype, x, y, z, fx, fy, fz))
-                    max_r = max(max_r, radius)
-                    
-                    
-
-            #set what kind of data to expect in next lines
-            if 'ITEM: TIMESTEP' in line:
-                if len(res) != 0:
-                    for type, atom_forces in res.items():
-                        l = sorted(atom_forces, key = lambda af: af.id)
-                        res[type] = l
-                    all_res.append(res)
-                elif len(times) > 0:
-                    times.pop()
-                r_time = True
-                t += 1
-                if t > t_end:
-                    break
-                if t < t_start:
-                    skip = True
-                else:
-                    skip = False
-                #print("Next is timestep")
-            elif 'ITEM: NUMBER OF ATOMS' in line:
-                r_atom_count = True
-                #print("Next is number of atoms")
-            elif 'ITEM: BOX BOUNDS' in line:
-                words = line.strip().split()
-                pbcX = True if words[-3] == "pp" else False
-                pbcY = True if words[-2] == "pp" else False
-                pbcZ = True if words[-1] == "pp" else False
-                r_boundary = True
-                bounds = Boundary(line)
-                dim = 3
-                #print("Next 3 lines are bondaries")
-            elif 'ITEM: ATOMS' in line:
-                r_atoms = True
-                atr_line = line[line.index('S')+1:]
-                atr_words = atr_line.split(' ')
-                #print("Atom coordinate lines are coming")
-    return all_res, all_bounds, times
 
 
 
@@ -686,81 +466,6 @@ def append_bondlens(filename, types, chain_count, chain_len):
 
 
 
-def get_frames(filename, t_start, t_end, types = None):
-    assert t_start <= t_end
-    r_time = False
-    r_atom_count = False
-    r_boundary = False
-    r_atoms = False
-    skip = False
-    d = 0
-    t = 0
-    max_r = 0
-    cur_frame = None
-    real_count = 0
-    frames = []
-    #type_count = {}
-    #for type in types:
-     #   type_count[type] = 0
-    with open(filename) as file:
-        for line in file:
-            #check what kind of data to expect in this line
-            if r_time:
-                time = int(line)
-                print("Time step: %d" %time)
-                r_time = False
-            elif r_atom_count:
-                count = int(line)
-                if not skip:
-                    cur_frame = np.zeros([count, 8])
-                print("# of atoms: %d" %count)
-                r_atom_count = False
-            elif r_boundary:
-                d -= 1
-                r_boundary = False if d == 0 else True
-            elif r_atoms:
-                if 'ITEM: TIMESTEP' in line:
-                    r_atoms = False
-                else:
-                    #print("reading atoms")
-                   # print(len(line.split(' ')))
-                    if skip:
-                        continue
-                        
-                    id, mol, type, x, y, z, fx, fy, fz, _  = line.split(' ')
-                    id, mol, type, x, y, z, fx, fy, fz = int(id), int(mol), int(type), float(x), float(y), float(z), float(fx), float(fy), float(fz)
-                    #if types is not None and type in types and time == t_start:
-                    #    typecount[type] += 1
-                    #if type not in types: continue
-                    cur_frame[id-1, 0], cur_frame[id-1, 1] = mol, type
-                    cur_frame[id-1, 2], cur_frame[id-1, 3], cur_frame[id-1, 4] = x, y, z
-                    cur_frame[id-1, 5], cur_frame[id-1, 6], cur_frame[id-1, 7] = fx, fy, fz
-                    
-
-            #set what kind of data to expect in next lines
-            if 'ITEM: TIMESTEP' in line:
-                if cur_frame is not None and not skip:
-                    frames.append(cur_frame)
-                r_time = True
-                t += 1
-                if t > t_end:
-                    break
-                if t < t_start:
-                    skip = True
-                else:
-                    skip = False
-                print("Next is timestep")
-            elif 'ITEM: NUMBER OF ATOMS' in line:
-                r_atom_count = True
-                print("Next is number of atoms")
-            elif 'ITEM: BOX BOUNDS pp pp mm' in line:
-                r_boundary = True
-                d = 3
-                print("Next 3 lines are bondaries")
-            elif 'ITEM: ATOMS' in line:
-                r_atoms = True
-                print("Atom coordinate lines are coming")
-    return  frames
 
 
 def broken_bonds(frames, type, chain_count, chain_len, max_bond_length):
@@ -785,77 +490,6 @@ def broken_bonds(frames, type, chain_count, chain_len, max_bond_length):
         broken_bond_count.append(count)
     ts = [i+1 for i in range(len(broken_bond_count))]
     plt.plot(ts, broken_bond_count)
-    plt.show()
-
-
-
-def get_avg_pressure(atom_forces, r):
-    count = len(atom_forces)
-    normal_pressures = np.zeros(count)
-    i = 0
-    for atom_f in atom_forces:
-        normal_pressures[i] = atom_f.fz/(math.pi*((d/2)**2))
-        i += 1
-    if len(normal_pressures) == 0:
-        print("NO ATOMS TO COMPUTE AVG PRESSURE")
-        return 0
-    total_pressure = np.sum(normal_pressures)
-    print("Radius r: %f total pressure: %f number of atoms: %d" %(r, total_pressure, count))
-    return abs(total_pressure/count) #IS ABS VALUE ALWAYS VALID?
-
-def plot_avg_pressure(filename, type):
-    res, frames = get_interactions(filename, 21, 22)
-    atom_forces = res[type]
-    max_r = atom_forces[-1].radius
-    r_limit = max_r * math.cos(math.pi/4)
-    bins = np.arange(sigma/2, r_limit + sigma/4, sigma )
-    #calculate hertz predictions
-    hertz_max_r = (3*forces[-1]*R/(4*E_star))**(1/3) #adhoc here on choice of forces
-    hertz_bins = np.arange(0, hertz_max_r, hertz_max_r/100)
-    hertz_bins = np.append(hertz_bins, hertz_max_r)
-    hertz_pres = [(2*hertz_max_r/(math.pi*R)) * math.sqrt(1 - (r/hertz_max_r)**2) for r in hertz_bins]
-    #calculate average pressures
-    avg_pressures = []
-    for bin_r in bins:
-        low_bound = bin_r - sigma/2
-        up_bound = bin_r + sigma/2
-        low_idx = binary_search_low(atom_forces, low_bound)
-        up_idx  = binary_search_up(atom_forces, up_bound)
-        atom_force_bin = atom_forces[low_idx:(up_idx+1)]
-        if bin_r == 45.5:
-            print(get_avg_pressure(atom_forces[0:low_idx+1], 41.5))
-            print(get_avg_pressure(atom_forces[low_idx:(len(atom_forces))], 41.5))
-        avg_pressures.append(get_avg_pressure(atom_force_bin, bin_r))
-        print(bin_r, low_idx, up_idx)
-    new_avg_pressures = [p/E_star for p in avg_pressures]
-    print(hertz_bins.size)
-    print("total pressure: %f" %(sum(avg_pressures)))
-    #plt.plot(hertz_bins, hertz_pres, 'r')
-    plt.plot(bins, new_avg_pressures, 'bo')
-    plt.suptitle('Normal pressure distribution in contact zone. Normal load: %d' %(forces[-1]), fontsize = 20) #adhoc here on choice of forces
-    plt.ylabel(r'$p/E^{\ast}$', fontsize = 16)
-    plt.xlabel(r'$r/\sigma$', fontsize = 16)
-    plt.show()
-
-
-def plot_nforce_vs_cont_area():
-    max_radii = []
-    t1 = np.arange(0.0, 0.06, 0.01)
-    for force in forces:
-        filename = 'visualize_%d.out' %force
-        res = get_interactions(filename)
-        max_r = 0
-        for type, atom_forces in res.items():
-            max_r = max(max_r, atom_forces[-1].radius)
-        max_radii.append(max_r)
-    new_forces = [(3*force/(4*E_star*R**2))**(1/3) for force in forces]
-    new_radii = [r/R for r in max_radii]
-    print(t1)
-    plt.plot(t1, t1, 'r')
-    plt.plot(new_forces, new_radii, 'bo')
-    plt.suptitle('Contact radius a vs normal load N', fontsize = 20)
-    plt.ylabel(r'$a/R$', fontsize = 16)
-    plt.xlabel(r'$(3N/4E^{\ast}R^2)^{1/3}$', fontsize = 16)
     plt.show()
 
 def plot_layer_density(l_type, frames, t):
@@ -901,16 +535,6 @@ def get_displacements(type, frames, t1, t2):
     print(delta_d.shape, frame1.shape)
     return cmap
     
-
-def select_from_frame(frame, type):
-    '''Get given type of molecules from set of all molecules'''
-    idx = frame[:, 1] == type
-    return frame[idx, :]
-
-
-def print_total_load(frame, type):
-    frame = select_from_frame(frame, type)
-    print(np.sum(frame[:, 7]))
 
 
 
@@ -1118,8 +742,17 @@ def plot_stresszz_d(all_res, times, v, type):
         for j in range(2):
             ax[i][j].set_xlabel("$d$")
     fig.suptitle("Shift d = %g" %d0)
-    print("Avg stress: %g" %(avg_strs/cnt))
+    
     plt.show()
+    fig, ax = plt.subplots(1, 1)
+    plt.plot(ds, strs_z, 'b')
+    plt.ylabel("$\sigma_{zz}$", rotation = 0)
+    plt.xlabel("$d$")
+    plt.legend()
+    plt.plot()
+    plt.show()
+    print("Avg stress: %g" %(avg_strs/cnt))
+    
     '''
     plt.plot(ds, fzs, label = "F_z vs d")
     ds2 = [d**2 for d in ds]
@@ -1413,7 +1046,7 @@ def vis_hardness(css):
     d0 = 0 #2.2 
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
-    filename = vis_data_path + 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out' %(css.M, css.N, css.T, css.r, css.cang)
+    filename = filenames.vis
     all_res, bounds, times = get_interactions(filename, t_init, t_final, types, interacting = True)
     plot_stresszz_d(all_res, times, vz, tip_type)
              
@@ -1423,23 +1056,47 @@ def remove_file(filename):
         os.remove(filename)
     except OSError:
         pass
+
     
 def main():
     parser = argparse.ArgumentParser(description = "Contact analysis")
-    parser.add_argument('--stiff', action = 'store_true',    help = 'is polymer stiff')
     parser.add_argument('--M', type=int,   default = 2000,   help = '# of chains in a melt')
     parser.add_argument('--N', type=int,   default = 256,    help = '# of monomers per chain')
     parser.add_argument('--T', type=float, default = 0.0001, help = 'Temperature of the system')
+    parser.add_argument('--vz', type=float, default = 0.0001, help = 'Indenting tip velocity')
+    parser.add_argument('--dt', type=float, default = 0.01, help = 'Integration time step of the simluation')
+    parser.add_argument('--r', type=float, default = 10, help = 'Radius of the spherical tip')
+    parser.add_argument('--cang', type=float, default = 45, help = 'Angle the cone surface makes with the horizontal plane')
+    parser.add_argument('--stiff', action = 'store_true', default = False ,   help = 'True if polymer stiff (i.e. there is an angle style defined)')
+    parser.add_argument('--hardness', action = 'store_true', default = False, help = 'True if analysis of hardness is needed')
+    parser.add_argument('--bondstats', action = 'store_true', default = False,  help = 'True if analysis of hardness is LJ bond lengths is needed')
+    parser.add_argument('--stretches', action = 'store_true', default = False, help = 'True if analysis of end-end polymer lengths is LJ bond lengths is needed')
+    parser.add_argument('--conetip', action = 'store_true', default = False, help = 'True if tip is of spherical shape')
     args = parser.parse_args()
+    Temp = 0.0001
+    is_stiff = True
+    global css, filenames
+    print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
+    css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
+    css.set_analysisvals(1, 50, 1)
+    filenames = FileNames(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
+
     print(args.stiff, args.M)
     #plot_nforce_vs_cont_area()
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
+    if args.hardness:
+        vis_hardness(css)
+    if args.bondstats:
+        visualize_lj_bond_stats(css)
+    if args.stretches:
+        visualize_stretches(css)
+    #vis_hardness(css)
     #visualize_particles(css)
     #visualize_stretches(css)
     #vis_hardness(css)
-    visualize_lj_bond_stats(css)
+    #visualize_lj_bond_stats(css)
     return
     M, N = 2000, 256
     r = 10

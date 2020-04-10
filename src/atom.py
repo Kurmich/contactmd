@@ -90,6 +90,13 @@ class AtomicForces(Atom):
     def __eq__(self, other):
         return self.radius == other.radius   
 
+
+class Monomer(Atom):
+    def __init__(self, mon_id, type, x, y, z, vx, vy, vz):
+        Atom.__init__(self, mon_id, type, x, y, z)
+        self.set_velocity(vx, vy, vz)
+        self.set_molecule_id( -1 )
+
 def main():
     a = Atom(1, 1, 1, 2, 3)
     a.set_equilibrium(1, 2, 3)

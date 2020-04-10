@@ -3,6 +3,8 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from data import data
+from atom import Monomer
+from boxcell import *
 
 forces = [500.0]
 poisson = 0.5
@@ -78,7 +80,7 @@ class PolymerMelt:
             polymer.pol_id = pi + 1
             for mi in range(len(polymer.monomers)):
                 monomer = polymer.monomers[mi]
-                monomer.mon_id = mon_start_id + mi + 1
+                monomer.id = mon_start_id + mi + 1
             mon_start_id += len(polymer.monomers)
         self.sorted_ids = True
 
@@ -97,19 +99,19 @@ class PolymerMelt:
             for mi in range(len(polymer.monomers)):
                 mon = polymer.monomers[mi]
                 pol_id = polymer.pol_id if mon.mol_id == -1 else mon.mol_id
-                atom_line = "%d %d %d %g %g %g %d %d %d\n" % (mon.mon_id, pol_id, mon.type, mon.x, mon.y, mon.z, 0, 0, 0)
-                vel_line = "%d %g %g %g\n" %(mon.mon_id, mon.vx, mon.vy, mon.vz)
+                atom_line = "%d %d %d %g %g %g %d %d %d\n" % (mon.id, pol_id, mon.type, mon.x, mon.y, mon.z, 0, 0, 0)
+                vel_line = "%d %g %g %g\n" %(mon.id, mon.vx, mon.vy, mon.vz)
                 atom_lines.append(atom_line)
                 vel_lines.append(vel_line)
                 if mi < len(polymer.monomers)-1:
                     next_mon = polymer.monomers[mi+1]
-                    bond_line = "%d %d %d %d\n" %(bond_id, bond_type, mon.mon_id, next_mon.mon_id)
+                    bond_line = "%d %d %d %d\n" %(bond_id, bond_type, mon.id, next_mon.id)
                     bond_lines.append(bond_line)
                     bond_id += 1
                 if mi < len(polymer.monomers)-2:
                     next_mon = polymer.monomers[mi+1]
                     next_next_mon = polymer.monomers[mi+2]
-                    angle_line = "%d %d %d %d %d\n" %(angle_id, angle_type, mon.mon_id, next_mon.mon_id, next_next_mon.mon_id)
+                    angle_line = "%d %d %d %d %d\n" %(angle_id, angle_type, mon.id, next_mon.id, next_next_mon.id)
                     angle_lines.append(angle_line)
                     angle_id += 1
         #add angle headers
@@ -230,23 +232,15 @@ class Polymer:
     def add_monomer(self, monomer):
         self.monomers.append(monomer)
         
-class Monomer:
-    def __init__(self, mon_id, type, x, y, z, vx, vy, vz):
-        self.mon_id = mon_id
-        self.type = type
-        self.x, self.y, self.z = x, y, z
-        self.vx, self.vy, self.vz = vx, vy, vz
-        self.mol_id = -1
-        
 class Node:
     def __init__(self):
         self.pol_id = -1
         self.monomer = Monomer(0,0,0,0,0,0,0,0)
         self.neighbors = []
     def __lt__(self, other):
-        return self.monomer.mon_id < other.monomer.mon_id
+        return self.monomer.id < other.monomer.id
     def __eq__(self, other):
-        return self.monomer.mon_id == other.monomer.mon_id
+        return self.monomer.id == other.monomer.id
 
 
 class Graph:
@@ -257,13 +251,13 @@ class Graph:
     
     def update_mon_pos(self, mon_id, type, x, y, z):
         monomer = self.nodes[mon_id].monomer
-        monomer.mon_id = mon_id
+        monomer.id = mon_id
         monomer.type = type
         monomer.x, monomer.y, monomer.z = x, y, z
 
     def update_mon_vel(self, mon_id, vx, vy, vz):
         monomer = self.nodes[mon_id].monomer
-        monomer.vx, monomer.vy, monomer.vz = vx, vy, vz
+        monomer.set_velocity(vx, vy, vz)
 
     def add_bond(self, mon_id1, mon_id2):
         self.nodes[mon_id1].neighbors.append(self.nodes[mon_id2])
@@ -316,7 +310,7 @@ class Graph:
                 break
         self.create_ids(start_node, start_node, 0)
     def create_ids(self, parent, node, id):
-        node.monomer.mon_id = id
+        node.monomer.id = id
         for nbr in node.neighbors:
             if nbr != parent:
                 self.create_ids(node, nbr, id+1)
@@ -418,7 +412,7 @@ def add_angles(M, N):
     
 def clean_quenched_file(M, N, T):
     xs, ys = read_goal("goal.txt")
-    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g" %(M,N,T)
+    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g_nve" %(M,N,T)
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
@@ -438,20 +432,29 @@ def clean_quenched_file(M, N, T):
 
 
 def check_equilibration(M, N):
-    filename = "../lammpsinput/melt_stiff_wallz_M%d_N%d.data" %(M,N)
+    xs, ys = read_goal("goal.txt")
+    filename = "../lammpsinput/data_eq_stiff_M%d_N%d" %(M,N)
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.mountain_mol_ids()
     pol_melt.get_Florys_ratio()
+    pol_melt.plot_mean_square('r', 'Equilibrated')
+    plt.suptitle('Mean Square Internal Distances M: %d N: %d T: %g' %(M, N, 1), fontsize = 20)
+    plt.plot(xs,ys, 'g', label='Target function')
+    plt.ylabel(r'$<R^2(n)>/n$', fontsize = 16)
+    plt.xlabel(r'$n$', fontsize = 16)
+    plt.legend()
+    plt.show()
 
 def main():
     xs, ys = read_goal("goal.txt")
     M = 2000
     N = 256
-    T = 0.0001
+    T = 0.1
     #check_equilibration(M, N)
     #add_angles(M, N)
+    #check_equilibration(M, N)
     clean_quenched_file(M, N, T)
 #    return
     '''

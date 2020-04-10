@@ -103,7 +103,7 @@ class Crystal:
     def bend_to_sphere(self, radius, concave_up = True):
         #bend the atoms around center
         n = 0
-        z_cut = 8 * self.d
+        z_cut = 30 * self.d
         zcm = self.z_max + radius
         self.init_borders()
         self.num_atoms = 0
