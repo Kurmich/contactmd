@@ -10,7 +10,9 @@ from boxcell import *
 from atom import AtomicForces
 epsilon = 0.000001
 
-def get_interactions(filename, t_start, t_end, types, interacting = False):
+idsort = lambda af: af.id
+
+def get_interactions(filename, t_start, t_end, types, interacting = False, sortkey = idsort):
     assert t_start <= t_end
     r_time = False
     r_atom_count = False
@@ -82,7 +84,7 @@ def get_interactions(filename, t_start, t_end, types, interacting = False):
             if 'ITEM: TIMESTEP' in line:
                 if len(res) != 0:
                     for type, atom_forces in res.items():
-                        l = sorted(atom_forces, key = lambda af: af.id)
+                        l = sorted(atom_forces, key = sortkey)
                         res[type] = l
                     all_res.append(res)
                 elif len(times) > 0:

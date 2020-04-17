@@ -98,6 +98,68 @@ def heat_stats(filename, scale, step):
     
 
 
+def compression_stats(filename):
+    N = 100000
+    max_time = 14000000000
+    izhi = 13
+    ipzz = 16
+    Lxs, Lys, Lzs = [], [], []
+    pxx, pyy, pzz = [], [], []
+    with open(filename, 'r') as file:
+        for line in file:
+            words = line.strip().split()
+            if len(words) == 0: continue
+            if words[0] == "Step":
+                N = len(words)
+                assert words[izhi] == "Zhi"
+                assert words[ipzz] == "Pzz"
+                print(line)
+            if N == len(words) and words[0].isdigit():
+                time = int(words[0])
+                if time > max_time: break
+                vals = list(map(float, words))
+                Lz = vals[izhi]   - vals[izhi-1]
+                Ly = vals[izhi-2] - vals[izhi-3]
+                Lx = vals[izhi-4] - vals[izhi-5]
+                if vals[ipzz] < 0:
+                    Lxs, Lys, Lzs = [], [], []
+                    pxx, pyy, pzz = [], [], []
+                if Lz < 10: continue
+                Lzs.append(Lz)
+                Lys.append(Ly)
+                Lxs.append(Lx)
+                pzz.append(vals[ipzz])
+                pyy.append(vals[ipzz-1])
+                pxx.append(vals[ipzz-2])
+    t_strainz = [math.log(lz/Lzs[0]) for lz in Lzs]
+    E = get_Youngs_modulus(t_strainz, pzz)
+    print(E)
+    plt.plot(t_strainz, pzz, label = "$p_{zz}$")
+    #plt.plot(Lzs, pyy, label = "$p_{yy}$")
+    #plt.plot(Lzs, pxx, label = "$p_{xx}$")
+    plt.xlabel("$\epsilon_t$")
+    plt.ylabel("$\sigma_t$")
+    plt.legend()
+    plt.show()
+
+
+def get_Yield_stress(strains, stresses):
+    return 0
+
+def get_Youngs_modulus(strains, stresses):
+    p0 = stresses[0]
+    e0 = strains[0]
+    idx = 1
+    for eps in strains:
+        if abs(eps) < 0.04:  #ADHOC
+            idx += 1
+        else:
+            break
+    p1 = stresses[idx]
+    e1 = strains[idx]
+    E = (p1-p0) / (e1-e0)
+    return E
+
 def motion_stats(filename):
     N = 100000
     max_time = 14000000000
@@ -132,6 +194,7 @@ def motion_stats(filename):
     plt.ylabel("$log(<x^2>)$")
     plt.legend()
     plt.show()
+
 
 def plot_changes(ds, ccfrac, cefrac, contactd, delta_r):
     cfrac = [ccfrac[i] + cefrac[i] for i in range(len(ccfrac))]
@@ -184,15 +247,17 @@ def bond_change_stats(filename):
    
 def main():
     M, N = 2000, 256
-    T = 0.2
+    T = 0.1
     R, cang = 10, 45
+    filename = "../outputfiles/deform_M%d_N%d_T%g.txt" %(M, N, T)
+    compression_stats(filename)
     #filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
     #motion_stats(filename)
-    filename = "../outputfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT.txt" %(M, N, T, R, cang)
-    heat_stats(filename, 0.8214 * 0.00000416 * 4.5, 1)
-    filename = "../outputfiles/stats_M2000_N256_T0.2_r10_cang45_p0.3.txt"
-    bond_change_stats(filename)
-    plt.show()
+    #filename = "../outputfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT.txt" %(M, N, T, R, cang)
+    #heat_stats(filename, 0.8214 * 0.00000416 * 4.5, 1)
+    #filename = "../outputfiles/stats_M2000_N256_T0.2_r10_cang45_p0.3.txt"
+    #bond_change_stats(filename)
+    #plt.show()
     
     
 if __name__ == "__main__":

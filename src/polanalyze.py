@@ -451,7 +451,7 @@ def main():
     xs, ys = read_goal("goal.txt")
     M = 2000
     N = 256
-    T = 0.1
+    T = 0.2
     #check_equilibration(M, N)
     #add_angles(M, N)
     #check_equilibration(M, N)
