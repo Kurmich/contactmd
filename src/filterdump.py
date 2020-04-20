@@ -1,7 +1,9 @@
 
-name = "visualize_M2000_N256_T0.2_r10_cang45.out"
+#name = "visualize_M2000_N256_T0.2_r10_cang45.out"
 #name = "visualizepull_M2000_N256_r10_cang60_t5000000_nve.out"
 #name = "viscomp_M2000_N500.out"
+
+name = "vis_sphere_stiff_M2000_N256_T0.1_r80.out"
 
 filename = "../visfiles/" + name
 epsilon = 0.0000000000001

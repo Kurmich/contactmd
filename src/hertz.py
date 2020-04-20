@@ -173,7 +173,7 @@ def plot_nforce_vs_cont_area():
     
 fig, ax = plt.subplots()
 line1, = ax.plot([], [], 'bo')
-ax.set(xlim=(0, 30), ylim=(0, 0.4))
+ax.set(xlim=(0, 50), ylim=(0, 0.6))
 ax.set_ylabel(r'$p/E^{\ast}$', fontsize = 16)
 ax.set_xlabel(r'$r/\sigma$', fontsize = 16)
 depth_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
@@ -199,7 +199,7 @@ anim_atom_forces = []
 times = None  
 def animate_hertz_contact():
     global anim_atom_forces, times
-    t_init, t_final = 5, 45
+    t_init, t_final = 5, 80
     tip_type = 2
     glass = 1
     types = [tip_type]

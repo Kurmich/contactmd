@@ -98,7 +98,7 @@ def heat_stats(filename, scale, step):
     
 
 
-def compression_stats(filename):
+def compression_stats(filename, T):
     N = 100000
     max_time = 14000000000
     izhi = 13
@@ -113,7 +113,7 @@ def compression_stats(filename):
                 N = len(words)
                 assert words[izhi] == "Zhi"
                 assert words[ipzz] == "Pzz"
-                print(line)
+                #sprint(line)
             if N == len(words) and words[0].isdigit():
                 time = int(words[0])
                 if time > max_time: break
@@ -124,7 +124,7 @@ def compression_stats(filename):
                 if vals[ipzz] < 0:
                     Lxs, Lys, Lzs = [], [], []
                     pxx, pyy, pzz = [], [], []
-                if Lz < 10: continue
+                if Lz < 15: continue
                 Lzs.append(Lz)
                 Lys.append(Ly)
                 Lxs.append(Lx)
@@ -134,13 +134,12 @@ def compression_stats(filename):
     t_strainz = [math.log(lz/Lzs[0]) for lz in Lzs]
     E = get_Youngs_modulus(t_strainz, pzz)
     print(E)
-    plt.plot(t_strainz, pzz, label = "$p_{zz}$")
+    plt.plot(t_strainz, pzz, label = "$T = %g$" %T)
     #plt.plot(Lzs, pyy, label = "$p_{yy}$")
     #plt.plot(Lzs, pxx, label = "$p_{xx}$")
-    plt.xlabel("$\epsilon_t$")
-    plt.ylabel("$\sigma_t$")
+    plt.xlabel("$\epsilon_t$", fontsize=16)
+    plt.ylabel("$\sigma_t$", fontsize=16, rotation=0)
     plt.legend()
-    plt.show()
 
 
 def get_Yield_stress(strains, stresses):
@@ -247,10 +246,13 @@ def bond_change_stats(filename):
    
 def main():
     M, N = 2000, 256
-    T = 0.1
+    #T = 0.1
+    Ts = [0.0001, 0.1, 0.2]
     R, cang = 10, 45
-    filename = "../outputfiles/deform_M%d_N%d_T%g.txt" %(M, N, T)
-    compression_stats(filename)
+    for T in Ts:
+        filename = "../outputfiles/deform_M%d_N%d_T%g.txt" %(M, N, T)
+        compression_stats(filename, T)
+    plt.show()
     #filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
     #motion_stats(filename)
     #filename = "../outputfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT.txt" %(M, N, T, R, cang)

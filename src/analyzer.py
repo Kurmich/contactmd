@@ -35,25 +35,25 @@ class FileNames:
         else:
             self.make_spheretip_names(M, N, T, r, stiff)
     def make_conetip_names(self, M, N, T, r, cang, stiff):
-        name  = 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out' %(M, N, T, r, cang) if stiff else 'visualize_M%d_N%d_T%g_r%d_cang%d.out' %(M, N, T, r, cang)
+        name  = 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out'    %(M, N, T, r, cang) if stiff else 'visualize_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang)
         self.vis   = vis_data_path + name
-        name  = 'pairids_stiff_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang) if stiff else 'pairids_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang)
+        name  = 'pairids_stiff_M%d_N%d_T%g_r%d_cang%d.out'      %(M, N, T, r, cang) if stiff else 'pairids_M%d_N%d_T%g_r%d_cang%d.out'     %(M, N, T, r, cang)
         self.inter = vis_data_path + name
-        name  = 'conetip_stiff_M%d_N%d_T%g_r%d_cang%d_nve.txt'   %(M, N, T, r, cang) if stiff else 'conetip_M%d_N%d_T%g_r%d_cang%d_nve.txt'   %(M, N, T, r, cang)
+        name  = 'conetip_stiff_M%d_N%d_T%g_r%d_cang%d_nve.txt'  %(M, N, T, r, cang) if stiff else 'conetip_M%d_N%d_T%g_r%d_cang%d_nve.txt' %(M, N, T, r, cang)
         self.heat  = out_data_path + name
-        name  = 'stats_stiff_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang) if stiff else 'stats_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang)
+        name  = 'stats_stiff_M%d_N%d_T%g_r%d_cang%d.out'        %(M, N, T, r, cang) if stiff else 'stats_M%d_N%d_T%g_r%d_cang%d.out'       %(M, N, T, r, cang)
         self.stats  = out_data_path + name
         #changes = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, delta_r, step)
         #breaks = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  delta_r, step)
         #vis_changes = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
     def make_spheretip_names(self, M, N, T, r, stiff):
-        name  = 'vis_sphere_stiff_M%d_N%d_T%g_r%d.out' %(M, N, T, r) if stiff else 'vis_sphere_M%d_N%d_T%g_r%d.out' %(M, N, T, r)
+        name  = 'vis_sphere_stiff_M%d_N%d_T%g_r%d.out'    %(M, N, T, r) if stiff else 'vis_sphere_M%d_N%d_T%g_r%d.out'   %(M, N, T, r)
         self.vis   = vis_data_path + name
-        name  = 'pairids_stiff_M%d_N%d_T%g_r%d.out'   %(M, N, T, r) if stiff else 'pairids_M%d_N%d_T%g_r%d.out'   %(M, N, T, r)
+        name  = 'pairids_stiff_M%d_N%d_T%g_r%d.out'       %(M, N, T, r) if stiff else 'pairids_M%d_N%d_T%g_r%d.out'      %(M, N, T, r)
         self.inter = vis_data_path + name
-        name  = 'conetip_stiff_M%d_N%d_T%g_r%d_nve.txt'   %(M, N, T, r) if stiff else 'conetip_M%d_N%d_T%g_r%d_nve.txt'   %(M, N, T, r)
+        name  = 'conetip_stiff_M%d_N%d_T%g_r%d_nve.txt'   %(M, N, T, r) if stiff else 'conetip_M%d_N%d_T%g_r%d_nve.txt'  %(M, N, T, r)
         self.heat  = out_data_path + name
-        name  = 'stats_stiff_M%d_N%d_T%g_r%d.out'   %(M, N, T, r) if stiff else 'stats_M%d_N%d_T%g_r%d.out'   %(M, N, T, r)
+        name  = 'stats_stiff_M%d_N%d_T%g_r%d.out'         %(M, N, T, r) if stiff else 'stats_M%d_N%d_T%g_r%d.out'        %(M, N, T, r)
         self.stats  = out_data_path + name
         #changes = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, delta_r, step)
         #breaks = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  delta_r, step)
@@ -61,13 +61,13 @@ class FileNames:
 
 class ConesimSettings:
     def __init__(self, M, N, T, r, cang, vz, dt):
-        self.M = M       #number of chains
-        self.N = N       #number of monomers per chain
-        self.T = T       #Temperature of the system
-        self.r = r       #radius of the spherical tip of the cone
-        self.cang = cang #angle that cone makes with substrate plane
-        self.vz = vz     #velocity of the cone
-        self.dt = dt     #timestep of the simulation
+        self.M    = M       #number of chains
+        self.N    = N       #number of monomers per chain
+        self.T    = T       #Temperature of the system
+        self.r    = r       #radius of the spherical tip of the cone
+        self.cang = cang    #angle that cone makes with substrate plane
+        self.vz   = vz      #velocity of the cone
+        self.dt   = dt      #timestep of the simulation
         print("Simulation settings used for analysis")
         print("M : %d, N: %d, T: %g, r: %g, cang: %g, vz: %g, dt: %g" %(M, N, T, r, cang, vz, dt), flush = True)
     def set_analysisvals(self, t_init, t_final, t_step):
@@ -672,6 +672,7 @@ def plot_stresszz_d(all_res, times, v, type):
             continue
         elif count < 3:
             #continue
+            d = 1.12
             if first_contact:
                 t0 = times[i]
                 d0 = t0 * v * dt
@@ -917,9 +918,9 @@ def visualize_lj_bond_stats(css):
         for item in rate:
             f.write("%s\n" %item)
     
-    if css.T < 0.3:
-        scale =  0.8214 * 0.00000416
-        heat_stats(filename_heat, scale, step)
+    #if css.T < 0.3:
+    #    scale =  0.8214 * 0.00000416
+    #    heat_stats(filename_heat, scale, step)
     plt.savefig(changes_filename)
     plt.close()
     plot_breaks(ds, bfrac, ffrac, contactd)
@@ -1078,7 +1079,7 @@ def main():
     global css, filenames
     print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
-    css.set_analysisvals(1, 50, 1)
+    css.set_analysisvals(20, 22, 1)
     filenames = FileNames(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
 
     print(args.stiff, args.M)
@@ -1086,6 +1087,7 @@ def main():
     #substrate_type = 1
     #tip_type = 2
     #oligomer_type = 3
+    #sargs.hardness = True
     if args.hardness:
         vis_hardness(css)
     if args.bondstats:

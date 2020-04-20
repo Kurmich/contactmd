@@ -466,7 +466,7 @@ def add_sphere_tip(M, N, T, r, Dx, sep_z):
 def main():
     M = 2000
     N = 256
-    T = 0.1
+    T = 0.2
     r = 80#30
     cone_ang = 0#30
     Dx = 91#85
