@@ -1,0 +1,15 @@
+*.png
+*.out
+*.txt
+*.mp4
+
+*.py~
+*.py#
+*.sh
+*.sh~
+*.pyc
+
+
+**/visfiles
+**/lammpsinput
+**/outputfiles

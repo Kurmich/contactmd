@@ -22,36 +22,95 @@ def RepresentsFloat(s):
         return False
 
 
-newfilename = "../visfiles/filt_" + name
-newfile = open(newfilename, "w+")
 
-with open(filename, 'r') as f:
-    for line in f:
-        words = line.split()
-        if RepresentsInt(words[0]) and len(words) > 5:
-            for i in range(len(words)):
-                val = abs(float(words[i]))
-                if val < epsilon: words[i] = "0"
-            #fz, fy, fx = abs(float(words[-1])), abs(float(words[-2])), abs(float(words[-3]))
-            #if fx < epsilon: words[-3] = "0"
-            #if fy < epsilon: words[-2] = "0"
-            #if fz < epsilon: words[-1] = "0"
-            newline = ' '.join(words) + "\n"
-            newfile.write(newline)
-        elif len(words) > 2 and words[1] == "ATOMS":
-            if words[5] != "x":
-                words[5] = "x"
-                words[6] = "y"
-                words[7] = "z"
-                words[8] = "fx"
-                words[9] = "fy"
-                words[10] = "fz"
+
+def filter_for_ovito(filename, new_filename):
+    newfile = open(new_filename, "w+")
+    with open(filename, 'r') as f:
+        for line in f:
+            words = line.split()
+            if RepresentsInt(words[0]) and len(words) > 5: #check for small values
+                for i in range(len(words)):
+                    val = abs(float(words[i]))
+                    if val < epsilon: words[i] = "0"
                 newline = ' '.join(words) + "\n"
                 newfile.write(newline)
+            elif len(words) > 2 and words[1] == "ATOMS": 
+                if words[5] != "x":
+                    words[5] = "x"
+                    words[6] = "y"
+                    words[7] = "z"
+                    words[8] = "fx"
+                    words[9] = "fy"
+                    words[10] = "fz"
+                    newline = ' '.join(words) + "\n"
+                    newfile.write(newline)
+                else:
+                    newfile.write(line)
             else:
                 newfile.write(line)
-        else:
-            newfile.write(line)
-            #if not ( RepresentsFloat(words[-1]) and RepresentsFloat(words[-2]) and RepresentsFloat(words[-3])):
-            #    print(words[-3], words[-2], words[-3])
+    newfile.close()
             
+def isolate_dist_changes(filename, new_filename):
+    print("Isolating particles from " + filename + "\n to " + new_filename)
+    newfile = open(new_filename, "w+")
+    with open(filename, 'r') as f:
+        new_lines = []
+        atom_count = 0
+        for line in f:
+            if "TIMESTEP" in line: 
+                #update file
+                prev_line = ""
+                for nline in new_lines:
+                    if "NUMBER OF ATOMS" in prev_line:
+                        nline = str(atom_count) + "\n"
+                    newfile.write(nline)
+                    prev_line = nline
+                new_lines = []
+                atom_count = 0
+            words = line.split()
+            if RepresentsInt(words[0]) and len(words) > 5:
+                for i in range(len(words)-5, len(words)):
+                    val = abs(float(words[i])) #check if number of bond changes isn't zero
+                    if val != 0:
+                        newline = ' '.join(words) + "\n"
+                        new_lines.append(newline)
+                        atom_count += 1
+                        break                    
+            elif len(words) > 2 and words[1] == "ATOMS":
+                if words[5] != "x":
+                    words[5] = "x"
+                    words[6] = "y"
+                    words[7] = "z"
+                    words[8] = "fx"
+                    words[9] = "fy"
+                    words[10] = "fz"
+                    newline = ' '.join(words) + "\n"
+                    new_lines.append(newline)
+                else:
+                    new_lines.append(line)
+            else:
+                new_lines.append(line)
+    newfile.close()
+
+def main():
+    M, N = 2000, 256
+    T = 0.2
+    r = 10
+    cang = 45
+    ovito = False
+    if ovito:   
+        name = "vis_sphere_stiff_M%d_N%d_T%g_r%d.out" %(M,N,T,r)
+        filename = "../visfiles/" + name
+        new_filename = "../visfiles/filt_" + name
+        isolate_dist_changes(filename, new_filename)
+    else:
+        name = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p0.4.out" %(M,N,T,r,cang)
+        filename = "../visfiles/" + name
+        new_filename = "../visfiles/filt_" + name
+        isolate_dist_changes(filename, new_filename)
+        
+
+
+if __name__=="__main__":
+    main()

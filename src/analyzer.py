@@ -464,34 +464,6 @@ def append_bondlens(filename, types, chain_count, chain_len):
         new_file.flush()
         new_file.close()
 
-
-
-
-
-def broken_bonds(frames, type, chain_count, chain_len, max_bond_length):
-    broken_bond_count = []
-    bond_count = chain_len - 1
-    for frame in frames:
-        frame = frame[frame[:, 1] == type, :]
-        print(frame)
-        #print(np.diff(frame[:, 2:5], axis = 0))
-        print(np.sum(np.square(np.diff(frame[:, 2:5], axis = 0)), axis = 1))
-        drs = np.sqrt(np.sum(np.square(np.diff(frame[:, 2:5], axis = 0)), axis = 1))
-        print(drs)
-        count = 0
-        for i in range(chain_count):
-            print(i)
-            s = i * chain_len
-            e = s + chain_len
-            #print(s, e)
-            drs = np.sqrt(np.sum(np.square(np.diff(frame[s:e, 2:5], axis = 0)), axis = 1))
-            c = drs[drs[s:e] > max_bond_length]
-            count += len(drs[drs[s:e] > max_bond_length])
-        broken_bond_count.append(count)
-    ts = [i+1 for i in range(len(broken_bond_count))]
-    plt.plot(ts, broken_bond_count)
-    plt.show()
-
 def plot_layer_density(l_type, frames, t):
     frame_l = select_from_frame(frames[t-1], l_type)
     z_idx = 4
@@ -1100,62 +1072,6 @@ def main():
     #vis_hardness(css)
     #visualize_lj_bond_stats(css)
     return
-    M, N = 2000, 256
-    r = 10
-    dt = 0.01
-    cang = 60
-    tip_type = 2
-    glass = 1
-    t_start = 1
-    t_end = 100
-    types = [tip_type]
-    rc= 1.5
-    vz = 0.0001
-    d0 = 0 #2.2
-    #bond testing
-    #filename = '../visfiles/viscomp_M%d_N%d.out' %(M, N)
-    #frames = get_frames(filename, t_start, t_end)
-    #broken_bonds(frames, glass, M, N, 1.5)
-    #return
-    filename = '../visfiles/visualize_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
-    filenameinteractions = '../visfiles/pairids_M%d_N%d_r%d_cang%d.out' %(M, N, r, cang)
-    #append_bondlens(filename, types, M, N)
-    #return
-    all_res, bounds, times = get_interactions(filename, t_start, t_end, types, interacting = True)
-    #print(times)
-    #return
-    #all_inter, pair_counts = get_pair_interactions(filenameinteractions, t_start, t_end)
-    #add_neighbors(all_inter, all_res, glass)
-    #changes_comp, changes_ext, breaks, formations = get_lj_bond_stats(all_res, glass, bounds, 0.2)
-    #plot_neighbor_changes(times, changes_comp, changes_ext, breaks, formations, pair_counts, vz, dt, d0)
-    #af_2_visualize = all_res[2][glass][0:20]
-    #visualize_neighbors(af_2_visualize, bounds)
-    #return
-    #atom_forces = all_res[glass][1]
-    #add_neighbors(atom_forces, rc)
-#    plot_layer_density(glass, frames, t_start + 1)
- #   plot_layer_density(glass, frames, t_start + 20)
-    #print_total_load(frames[0], substrate_type)
-    #print_total_load(frames[0], tip_type)
-    #data = get_displacements(2, frames, 1, 2)
-    #plot_color_map(data)
-    #plot_avg_pressure(filename, substrate_type)
-    #plot_avg_pressure(filename, tip_type)
-    #frame = frames[t_end-1]
-    #indices = np.where(frame[:, 1] == tip_type)
-    #tipframe = frame[indices, :]
-    #interacting_af = interacting_particles(res[tip_type])
-    #jarvis(interacting_af, visualize = True)
-    plot_stresszz_d(all_res, times, vz, tip_type)
-    '''square = np.zeros([4, 2])
-    square[1, 0] = 1
-    square[2, 1] = 1
-    square[3, 0], square[3, 1] = 1, 1
-    hull = ConvexHull(square)
-    plt.plot(square[hull.vertices,0], square[hull.vertices,1], 'r--', lw=2)
-    plt.show()
-    print(hull.area)'''
-    print("M: %d N: %d r: %d cang: %d t_start: %d t_end: %d" %(M, N, r, cang, t_start, t_end))
 
 if __name__=="__main__":
     main()
