@@ -455,11 +455,11 @@ skeywords = [["Masses", "atom types"],
 
 def add_sphere_tip(M, N, T, r, Dx, sep_z):
     sep_z = 2**(1/6) + 0.5
-    d = data("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g.data" %(M, N, T))
+    d = data("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g_smooth.data" %(M, N, T))
 #    d2 = data("../lammpsinput/flattip_Dx%d.dat" %(Dx))
     d2 = data("../lammpsinput/sphere_r%d_Dx%d.dat" %(r, Dx))
     d.append(d2, sep_z)
-    d.write("../lammpsinput/spheretip_data_quenched_stiff_M%d_N%d_T%g_sphR%d" %(M, N, T, r))
+    d.write("../lammpsinput/spheretip_data_quenched_stiff_M%d_N%d_T%g_sphR%d_smooth" %(M, N, T, r))
     print("sepz: %g" %sep_z)
     
 
@@ -467,7 +467,7 @@ def main():
     M = 2000
     N = 256
     T = 0.2
-    r = 80#30
+    r = 25#30
     cone_ang = 0#30
     Dx = 91#85
     sep_z = 2**(1/6) + 0.5

@@ -463,7 +463,7 @@ def main():
     d = 2**(1/6)
     Dx, Dy, Dz = 91.3, 91.3, 3
     Dz_tip = (2**(1/2)) * d
-    radius = 80
+    radius = 25
     units = 'lj'
     atom_style = 'bond'
     cone_angle = 30

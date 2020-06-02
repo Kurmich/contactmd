@@ -199,7 +199,7 @@ anim_atom_forces = []
 times = None  
 def animate_hertz_contact():
     global anim_atom_forces, times
-    t_init, t_final = 5, 80
+    t_init, t_final = 5, 90
     tip_type = 2
     glass = 1
     types = [tip_type]
@@ -207,6 +207,7 @@ def animate_hertz_contact():
     writer = Writer(fps=10, metadata=dict(artist='Me'), bitrate=1800)
     all_res, bounds, times = get_interactions(filenames.vis, t_init, t_final, types, interacting = True, sortkey = radius_sort)
     t0 = times[0]
+    print(t0)
     for j in range(len(all_res)):
         res = all_res[j]
         #(times[j] - t0)
@@ -240,6 +241,7 @@ def main():
     #args.T = Temp
     is_stiff = True
     global css, filenames
+    args.r = 25
     print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
     #css.set_analysisvals(1, 50, 1)

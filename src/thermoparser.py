@@ -1,9 +1,12 @@
 import matplotlib.pyplot as plt
 import math
+import copy
+import numpy             as np
 
 M, N = 2000, 256
 T = 0.0001
 R, cang = 10, 45
+dt = 0.01
 filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
 filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve.txt" %(M, N, T, R, cang)
 
@@ -12,7 +15,7 @@ params[(1000,256)] = [72.1, 72.1, 52.8]
 params[(2000,256)] = [90.84, 90.84, 66.52]
 params[(2000,500)] = [113.93, 113.93, 82]
 vz = 0.0001
-dt = 0.005
+dt = 0.01
 area = 5184
 D = 10
 Lz = params[(M,N)][2] - 10
@@ -39,7 +42,6 @@ def running_average(arr, Nevery, Nrepeat, period):
 def heat_stats(filename, scale, step):
     N = 100000
     max_time = 1000000000000
-    dt = 0.01
     vz = 0.0001
     times, fzs, fys, pes  = [], [], [], []
     del_N = step * 20000
@@ -85,8 +87,9 @@ def heat_stats(filename, scale, step):
         us.append( scale * (pes[i] - pes[i-del_N]) )
         ws.append(scale*(cum_works[i] - cum_works[i-del_N]))
     newtimes = [t - t0 for t in times]
+    return ds, qs, us, ws
     for i in range(len(qs)):
-        qs[i] += 0.005
+        qs[i] += 0.0007
     
     plt.plot(ds, qs, label = "-Q", color = 'black')
     #plt.plot(ds, us, label = "$\Delta U$")
@@ -131,10 +134,11 @@ def compression_stats(filename, T):
                 pzz.append(vals[ipzz])
                 pyy.append(vals[ipzz-1])
                 pxx.append(vals[ipzz-2])
-    t_strainz = [math.log(lz/Lzs[0]) for lz in Lzs]
+    t_strainz       = [math.log(lz/Lzs[0]) for lz in Lzs]
+    pois_strains, pois_ratios = get_poissons_ratios(Lxs, Lys, Lzs)
     E = get_Youngs_modulus(t_strainz, pzz)
-    print(E)
-    plt.plot(t_strainz, pzz, label = "$T = %g$" %T)
+    plt.plot(t_strainz, pzz, label = "$T = %g, E = %3.1f$" %(T,-E))
+    plt.plot( pois_strains, pois_ratios, label ="T = %g, $ \\nu $" %T)
     #plt.plot(Lzs, pyy, label = "$p_{yy}$")
     #plt.plot(Lzs, pxx, label = "$p_{xx}$")
     plt.xlabel("$\epsilon_t$", fontsize=16)
@@ -145,23 +149,42 @@ def compression_stats(filename, T):
 def get_Yield_stress(strains, stresses):
     return 0
 
+
+def get_poissons_ratios(Lxs, Lys, Lzs):
+    step            = 2
+    t_strainz       = [math.log(Lzs[i]/Lzs[i-step]) for i in range(step, len(Lzs))]
+    t_strainx       = [math.log(Lxs[i]/Lxs[i-step]) for i in range(step, len(Lxs))]
+    poissons_ratios = [-t_strainx[i]/t_strainz[i]   for i in range(len(t_strainz))]
+    strains         = [math.log(Lzs[i]/Lzs[0])      for i in range(step, len(Lzs))]
+    #get average poissons rations for respective strains by averaging Nevery value
+    Nevery = 100
+    avg_strains, avg_poissons_ratios = [], []
+    for i in range(Nevery, len(poissons_ratios), Nevery):
+        total_pr = 0
+        for j in range(i-Nevery, i):
+            total_pr += poissons_ratios[i]
+        avg_strains.append(strains[i-Nevery])
+        avg_poissons_ratios.append(total_pr/Nevery)
+    return avg_strains, avg_poissons_ratios
+
 def get_Youngs_modulus(strains, stresses):
-    p0 = stresses[0]
-    e0 = strains[0]
-    idx = 1
+    idx        = 1
+    max_strain = 0.03 #small enough
     for eps in strains:
-        if abs(eps) < 0.04:  #ADHOC
+        if abs(eps) < max_strain:
             idx += 1
         else:
             break
-    p1 = stresses[idx]
-    e1 = strains[idx]
-    E = (p1-p0) / (e1-e0)
+    #fit linear equation
+    (E,b) = np.polyfit(strains[0:idx], stresses[0:idx], 1)
     return E
 
-def motion_stats(filename):
+def autocorr_stats(filename):
     N = 100000
     max_time = 14000000000
+    times, x2s, x2s_ave, vacfs  = [], [], [], []
+    cur_times, cur_x2s, cur_x2s_ave, cur_vacfs  = [], [], [], []
+    count = 0
     with open(filename, 'r') as file:
         for line in file:
             words = line.strip().split()
@@ -169,19 +192,39 @@ def motion_stats(filename):
             if words[0] == "Step":
                 N = len(words)
                 keywords = words
-                times, x2s, x2s_ave, vacfs  = [], [], [], []
+                if len(cur_times) > 1000:
+                    t0 = cur_times[0]
+                    cur_times = [t - t0 for t in cur_times]
+                    count += 1
+                    if len(times) == 0:
+                        times   = copy.deepcopy(cur_times)
+                        x2s     = copy.deepcopy(cur_x2s)
+                        x2s_ave = copy.deepcopy(cur_x2s_ave)
+                        vacfs   = copy.deepcopy(cur_vacfs)
+                    else:
+                        assert len(times) == len(cur_times), "Lengths of lists must match"
+                        times     = [ times[i]   + cur_times[i]         for i in range(len(times))]
+                        x2s       = [ x2s[i]     + cur_x2s[i]           for i in range(len(x2s))]
+                        x2s_ave   = [ x2s_ave[i] + cur_x2s_ave[i]       for i in range(len(x2s_ave))]
+                        vacfs     = [ vacfs[i]   + cur_vacfs[i]         for i in range(len(vacfs))]
+                cur_times, cur_x2s, cur_x2s_ave, cur_vacfs  = [], [], [], []
                 print(line)
             if N == len(words) and words[0].isdigit():
                 time = int(words[0])
                 if time > max_time: break
-                times.append(time)
-                x2s_ave.append(float(words[-1]))
-                x2s.append(float(words[-2]))
-                vacfs.append(float(words[-3]))
+                cur_times.append(time)
+                cur_x2s_ave.append(float(words[-1]))
+                cur_x2s.append(float(words[-2]))
+                cur_vacfs.append(float(words[-3]))
     t0 = times[0]
     print(t0)
-    newtimes = [t - t0 for t in times]
-    tt = [math.log10(newtimes[i]) for i in range(1, len(newtimes))]
+    print(count)
+    print(len(times), len(x2s))
+    times     = [ times[i]   /count       for i in range(len(times))]
+    x2s       = [ x2s[i]     /count       for i in range(len(x2s))]
+    x2s_ave   = [ x2s_ave[i] /count       for i in range(len(x2s_ave))]
+    vacfs     = [ vacfs[i]   /count       for i in range(len(vacfs))]
+    tt = [math.log10(times[i]) for i in range(1, len(times))]
     x2s_log = [math.log10(x2s[i]) for i in range(1, len(x2s))]
     x2save_log = [math.log10(x2s_ave[i]) for i in range(1, len(x2s_ave))]
     #plt.plot(newtimes, x2s, label = "x^2")
@@ -225,7 +268,7 @@ def bond_change_stats(filename):
     vz = 0.0001
     dt = 0.01
     delta_r = 0.03
-    contactd = 7
+    contactd = 2.8 + 2.5
     with open(filename, 'r') as file:
         for line in file:
             words = line.strip().split()
@@ -240,25 +283,64 @@ def bond_change_stats(filename):
             ffrac.append(forms / pair_count)
             comp_ext_frac.append(ce / pair_count)
             ext_comp_frac.append(ec / pair_count)
-    
+    return ds, comp_frac, ext_frac
     plot_changes(ds, comp_frac, ext_frac, contactd, delta_r)
     
-   
+
+def impose_heat_bonds(heatfile, ljbondfile):
+    ds1, qs, us, ws = heat_stats(heatfile, 1, 1)
+    ds, comp_frac, ext_frac = bond_change_stats(ljbondfile)
+    for i in range(len(ds1)):
+        if ds1[i] == ds[0]:
+            qs, us, ws = qs[i:], us[i:], ws[i:]
+            break
+    N = min(len(qs), len(comp_frac))
+    cfrac = [comp_frac[i] + ext_frac[i] for i in range(N)]
+    coeffs = np.polyfit(cfrac, qs[:N], 1)
+    scale, shift = coeffs[0], coeffs[1]
+    print(scale, shift)
+    cfrac = [scale * cf + shift for cf in cfrac]
+    d0 = ds[0]
+    ds = [ds[i]-d0 for i in range(len(ds))]
+    plt.plot(ds[:N], qs[:N], label = '-Q', color = 'black')
+    plt.plot(ds[:N], cfrac,  label = 'Scaled changes', color = 'green')
+    plt.xlabel("d")
+    plt.ylabel("Fraction, -Q")
+    plt.legend()
+    plt.show()
+
+
+
+def get_scale_shift(l1, l2):
+    '''Compute scaling and shifting needed for two vectors to have 'best' fit.
+    Ref: https://stackoverflow.com/questions/13563453/finding-the-best-scale-shift-between-two-vectors'''
+    N      = min(len(l1), len(l2))
+    l1     = np.array(l1[:N])
+    l2     = np.array(l2[:N])
+    l1     = np.abs(l1) / np.sum(l1)
+    l2     = np.abs(l2) / np.sum(l2)
+    m1, v1 = np.mean(l1), np.var(l1)
+    m2, v2 = np.mean(l2), np.var(l2)
+    scale  = (v2/v1)**(1/2)
+    shift  = m2 - scale * m1
+    return scale, shift
+
 def main():
     M, N = 2000, 256
-    #T = 0.1
-    Ts = [0.0001, 0.1, 0.2]
-    R, cang = 10, 45
+    T = 0.1
+    Ts = [ 0.1, 0.2]
+    R, cang = 80, 45
     for T in Ts:
         filename = "../outputfiles/deform_M%d_N%d_T%g.txt" %(M, N, T)
         compression_stats(filename, T)
     plt.show()
-    #filename = "../visfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT_stats.txt" %(M, N, T, R, cang)
-    #motion_stats(filename)
-    #filename = "../outputfiles/conetip_M%d_N%d_T%g_sphR%d_cang%d_nve_nzT.txt" %(M, N, T, R, cang)
-    #heat_stats(filename, 0.8214 * 0.00000416 * 4.5, 1)
-    #filename = "../outputfiles/stats_M2000_N256_T0.2_r10_cang45_p0.3.txt"
-    #bond_change_stats(filename)
+    '''filename = "../outputfiles/autocorr_stiff_M%d_N%d_T%g.txt" %(M, N, T)
+    autocorr_stats(filename)'''
+    '''heat_filename = "../outputfiles/spheretip_stiff_M%d_N%d_T%g_sphR%d_nve.txt" %(M, N, T, R)
+    bond_filename = "../outputfiles/stats_stiff_M2000_N256_T0.1_r80.out"
+    impose_heat_bonds(heat_filename, bond_filename)'''
+    #heat_stats(heat_filename, 0.8214 * 0.0000045 * 2, 1)
+    #bond_change_stats(bond_filename)
     #plt.show()
     
     

@@ -412,13 +412,13 @@ def add_angles(M, N):
     
 def clean_quenched_file(M, N, T):
     xs, ys = read_goal("goal.txt")
-    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g_nve" %(M,N,T)
+    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g_nve_smooth" %(M,N,T)
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.write_sections()
     pol_melt.get_Florys_ratio()
-    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g.data" %(M,N,T))
+    pol_melt.write_lammps_file("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g_smooth.data" %(M,N,T))
 #    d = data("eq_M%d_N%d.data" %(M, N))
 
     pol_melt.plot_mean_square('r', 'Equilibrated')

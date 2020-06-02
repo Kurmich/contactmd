@@ -22,10 +22,18 @@ def RepresentsFloat(s):
         return False
 
 
-
+def get_von_mises(words, idx):
+    if idx < 0: raise "Error"
+    s_xx, s_yy, s_zz = float(words[idx]), float(words[idx+1]), float(words[idx+2])
+    s_xy, s_xz, s_yz = float(words[idx+3]), float(words[idx+4]), float(words[idx+5])
+    a = (s_xx-s_yy)**2 + (s_zz-s_xx)**2 + (s_yy-s_zz)**2
+    b = 6*(s_xy**2 + s_xz**2 + s_yz**2)
+    return ((a+b)/2)**(1/2)
 
 def filter_for_ovito(filename, new_filename):
     newfile = open(new_filename, "w+")
+    stress_idx = -1
+    atom_vol = (4/3)*3.14*(1.12)**3
     with open(filename, 'r') as f:
         for line in f:
             words = line.split()
@@ -33,9 +41,13 @@ def filter_for_ovito(filename, new_filename):
                 for i in range(len(words)):
                     val = abs(float(words[i]))
                     if val < epsilon: words[i] = "0"
+                von_mis_stress = str(get_von_mises(words, stress_idx)/atom_vol)
+                words.append(von_mis_stress)
                 newline = ' '.join(words) + "\n"
                 newfile.write(newline)
             elif len(words) > 2 and words[1] == "ATOMS": 
+                stress_idx = words.index("c_full_s[1]")
+                words.append("von_mises")
                 if words[5] != "x":
                     words[5] = "x"
                     words[6] = "y"
@@ -93,17 +105,18 @@ def isolate_dist_changes(filename, new_filename):
                 new_lines.append(line)
     newfile.close()
 
+
 def main():
     M, N = 2000, 256
-    T = 0.2
-    r = 10
+    T = 0.1
+    r = 25
     cang = 45
-    ovito = False
+    ovito = True
     if ovito:   
         name = "vis_sphere_stiff_M%d_N%d_T%g_r%d.out" %(M,N,T,r)
         filename = "../visfiles/" + name
         new_filename = "../visfiles/filt_" + name
-        isolate_dist_changes(filename, new_filename)
+        filter_for_ovito(filename, new_filename)
     else:
         name = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p0.4.out" %(M,N,T,r,cang)
         filename = "../visfiles/" + name

@@ -85,6 +85,8 @@ class AtomicForces(Atom):
 
     def get_radius(self, x, y, z):
         return (x**2 + y**2 + z**2)**(1/2)
+    def set_radius(self, x, y, z):
+        self.radius = (x**2 + y**2 + z**2)**(1/2)
     def __lt__(self, other):
         return self.radius < other.radius
     def __eq__(self, other):
