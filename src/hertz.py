@@ -19,7 +19,7 @@ poisson = 0.5
 G_shear_mod = 16.0
 E     = 27 # youngs modulus
 E_star = E/(1 - poisson**2) #4 * G_shear_mod
-R = 80
+R = 25
 sigma = 1.0 #2**(1/6)
 d = 2.0**(1.0/6.0) * sigma
 atom_N = [1, 2, 3, 4]
@@ -199,7 +199,7 @@ anim_atom_forces = []
 times = None  
 def animate_hertz_contact():
     global anim_atom_forces, times
-    t_init, t_final = 5, 90
+    t_init, t_final = 5, 75
     tip_type = 2
     glass = 1
     types = [tip_type]
@@ -218,7 +218,7 @@ def animate_hertz_contact():
     plt.legend()
     plt.draw()
     plt.show()
-    #anim.save('hertz_pressure_M%d_N%d_T%g_r%d.mp4' %(css.M, css.N, css.T, css.r), dpi=200, writer=writer)
+    anim.save('hertz_pressure_M%d_N%d_T%g_r%d.mp4' %(css.M, css.N, css.T, css.r), dpi=200, writer=writer)
     
 filenames, css = None, None
 radius_sort = idsort = lambda af: af.radius
@@ -237,11 +237,13 @@ def main():
     parser.add_argument('--stiff',     action = 'store_true', default = False, help = 'True if polymer stiff (i.e. there is an angle style defined)')
     parser.add_argument('--conetip',   action = 'store_true', default = False, help = 'True if tip is of spherical shape')
     args = parser.parse_args()
-    Temp = 0.1
-    #args.T = Temp
+    Temp = 0.0001
+    args.T = Temp
     is_stiff = True
     global css, filenames
     args.r = 25
+    global R
+    R = args.r
     print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
     #css.set_analysisvals(1, 50, 1)

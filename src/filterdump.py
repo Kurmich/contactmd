@@ -108,7 +108,7 @@ def isolate_dist_changes(filename, new_filename):
 
 def main():
     M, N = 2000, 256
-    T = 0.1
+    T = 0.2
     r = 25
     cang = 45
     ovito = True

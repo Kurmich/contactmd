@@ -8,10 +8,13 @@ import argparse
 from thermoparser import heat_stats
 from boxcell import *
 from dumpparser import *
+from topology import *
 import gc
 epsilon = 0.000001
 dt      = 0.01    #integration time step used in simulations
 rc      = 1.5 + epsilon #cutoff distance for lennard Jones interactions
+glass = 1
+tip_type = 2
 vis_data_path = '../visfiles/'
 out_data_path = '../outputfiles/'
 #idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
@@ -515,22 +518,6 @@ def append_bondlens(filename, types, chain_count, chain_len):
         new_file.flush()
         new_file.close()
 
-def plot_layer_density(l_type, frames, t):
-    frame_l = select_from_frame(frames[t-1], l_type)
-    z_idx = 4
-    z_vals = frame_l[:, z_idx]
-    print(frame_l)
-    print(z_vals)
-    hist, bin_edges = np.histogram(z_vals, bins = 100)
-    bincenters = 0.5*(bin_edges[1:]+bin_edges[:-1])
-    fig, ax = plt.subplots()
-    plt.xlabel("z/sigma")
-    plt.title("Number of atoms vs z.")
-    ax.plot(bincenters, hist, '-', marker = 'o', fillstyle = 'none', markerfacecolor = 'r')
-    #ax.hist(z_vals, bins='auto')
-    ax.legend()
-    plt.show()
-
 def plot_color_map(data):
     print(data)
     fig, ax = plt.subplots()
@@ -705,6 +692,11 @@ def plot_stresszz_d(all_res, times, v, type):
             area = count * math.pi * (d/2)**2
             hc = get_contact_depth(interacting_af)
         else:
+            if first_contact:
+                t0 = times[i]
+                d0 = t0 * v * dt
+                print("First contact happens at t0 : %d d0: %g" %(t0, d0))
+                first_contact = False
             #if first_contact:
             #    t0 = t-1
             #    first_contact = False
@@ -857,8 +849,6 @@ def visualize_lj_bond_stats(css, delta_r):
     #T = 0.0001
     #r = 10
     #cang = 45
-    tip_type = 2
-    glass = 1
     types = [glass]
     atype = glass
     #rc = 1.5
@@ -956,8 +946,6 @@ def visualize_cum_lj_bond_stats(css, delta_r):
     #T = 0.0001
     #r = 10
     #cang = 45
-    tip_type = 2
-    glass = 1
     types = [glass]
     atype = glass
     #rc = 1.5
@@ -1065,7 +1053,6 @@ def get_thickness(atomic_forces):
 
 def visualize_stretches(css):
     print("Visualizing stretches")
-    glass = 1
     atype = glass
     types = [atype]
     t_init, t_final = css.t_init, css.t_final
@@ -1097,8 +1084,6 @@ def visualize_stretches(css):
 
 def visualize_particles(css):
     #cang = 45
-    tip_type = 2
-    glass = 1
     types = [glass]
     atype = glass
     #rc = 1.5
@@ -1143,8 +1128,6 @@ def visualize_particles(css):
 def vis_hardness(css):
     print("Visualizing hardness")
     #cang = 45
-    tip_type = 2
-    glass = 1
     types = [tip_type]
     atype = glass
     #rc = 1.5
@@ -1155,11 +1138,22 @@ def vis_hardness(css):
     filename = filenames.vis
     all_res, bounds, times = get_interactions(filename, t_init, t_final, types, interacting = True)
     plot_stresszz_d(all_res, times, vz, tip_type)
-             
+    
+    
+def vis_layers(css):
+    print("Visualizing layer density")
+    atype = glass
+    types = [glass]
+    t_init, t_final = 3, 3
+    filename = filenames.vis
+    all_res, bounds, times = get_interactions(filename, t_init, t_final, types, interacting = False)
+    atom_forces = all_res[0][atype]    
+    plot_layer_density(atom_forces)
+    
+
+        
 
 def vis_thickness(css):
-    tip_type = 2
-    glass = 1
     types = [glass]
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
@@ -1206,16 +1200,15 @@ def main():
     parser.add_argument('--hardness',  action = 'store_true', default = False, help = 'True if analysis of hardness is needed')
     parser.add_argument('--bondstats', action = 'store_true', default = False, help = 'True if analysis of hardness is LJ bond lengths is needed')
     parser.add_argument('--stretches', action = 'store_true', default = False, help = 'True if analysis of end-end polymer lengths is LJ bond lengths is needed')
-    parser.add_argument('--conetip',   action = 'store_true', default = False, help = 'True if tip is of spherical shape')
+    parser.add_argument('--conetip',   action = 'store_true', default = False, help = 'True if tip is of cone shape')
     args = parser.parse_args()
     Temp = 0.0001
     is_stiff = True
     global css, filenames
     print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
-    css.set_analysisvals(2, 4, 1)
+    css.set_analysisvals(10, 25, 1)
     filenames = FileNames(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
-
     print(args.stiff, args.M)
     #plot_nforce_vs_cont_area()
     #substrate_type = 1
@@ -1223,7 +1216,10 @@ def main():
     #oligomer_type = 3
     #sargs.hardness = True
     #vis_thickness(css)
-    #return
+    del_z = 1.5
+    visualize_fluctuations(css, filenames, del_z)
+    #vis_layers(css)
+    return
     if args.hardness:
         vis_hardness(css)
     if args.bondstats:

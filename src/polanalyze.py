@@ -449,13 +449,13 @@ def check_equilibration(M, N):
 
 def main():
     xs, ys = read_goal("goal.txt")
-    M = 2000
+    M = 7000
     N = 256
     T = 0.2
     #check_equilibration(M, N)
-    #add_angles(M, N)
+    add_angles(M, N)
     #check_equilibration(M, N)
-    clean_quenched_file(M, N, T)
+    #clean_quenched_file(M, N, T)
 #    return
     '''
    
