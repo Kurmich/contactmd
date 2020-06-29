@@ -75,7 +75,7 @@ class GFMD(Atom):
 class AtomicForces(Atom):
     def __init__(self, a_id, mol, type, x, y, z, fx, fy, fz):
         Atom.__init__(self, a_id, type, x, y, z)
-        self.mol = mol
+        self.mol                  = mol
         self.fx, self.fy, self.fz = fx, fy, fz
         self.radius               = self.get_radius(x, y, 0)
         self.atr                  = {}

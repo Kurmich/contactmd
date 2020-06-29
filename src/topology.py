@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 from dumpparser import *
 from matplotlib.animation import FuncAnimation
 import matplotlib.animation as animation
-
+from scipy.interpolate import griddata
+from boxcell import *
 
 class BinStatistics:
     def __init__(self):
@@ -25,31 +26,30 @@ class BinStatistics:
     def test(self):
         return len(self.all_bins) == len(self.all_ts)
 
-def plot_layer_density(atom_forces):
-    atom_forces = filter_by_height(atom_forces, -20, 20)
-    N = len(atom_forces)
+def plot_layer_density(atoms):
+    atoms = filter_by_height(atoms, -20, 20)
+    N = len(atoms)
     z_vals = np.zeros(N)
     for i in range(N):
-        z_vals[i] = atom_forces[i].z
-        if atom_forces[i].z < -30:
-            print("yes")
+        z_vals[i] = atoms[i].z
     hist, bin_edges = np.histogram(z_vals, bins = 120)
     bincenters = 0.5*(bin_edges[1:]+bin_edges[:-1])
-    fig, ax = plt.subplots()
-    plt.xlabel("z/\sigma")
+    plt.close()
+    plt.plot(bincenters, hist, '-', marker = 'o', fillstyle = 'none', markerfacecolor = 'r')
+    plt.xlabel(r'$z(\sigma)$')
     plt.title("Number of atoms vs z.")
-    ax.plot(bincenters, hist, '-', marker = 'o', fillstyle = 'none', markerfacecolor = 'r')
+    
     #ax.hist(z_vals, bins='auto')
-    ax.legend()
+    plt.legend()
     plt.show()
     
     
-def filter_by_height(atom_forces, zlo, zhi):
-    filtered_afs = []
-    for af in atom_forces:
-        if af.z > zlo and af.z < zhi:
-            filtered_afs.append(af)
-    return filtered_afs
+def filter_by_height(atoms, zlo, zhi):
+    filtered_atoms = []
+    for atom in atoms:
+        if atom.z > zlo and atom.z < zhi:
+            filtered_atoms.append(atom)
+    return filtered_atoms
 
 
 
@@ -195,6 +195,61 @@ def get_pos_force_fluctuations(atom_forces, atom_forces_p, z_idx_tuples, bin_ind
 
 
 
+
+def get_avg_points_and_vals(atom_forces, bounds, rc):
+    cells = construct_cell_list_2D(atom_forces, bounds, rc)
+    xs, ys, values = [], [], []
+    for cell in cells:
+        x_sum, y_sum, val_sum = 0, 0, 0
+        N = len(cell.elements)
+        if N == 0: continue
+        for idx in cell.elements:
+            x_sum   += atom_forces[idx].x
+            y_sum   += atom_forces[idx].y
+            val_sum += atom_forces[idx].fz
+        xs.append(x_sum/N)
+        ys.append(y_sum/N)
+        values.append(val_sum)
+    return np.array( [ xs, ys ] ).T, values
+            
+def autocorrfz(atom_forces, bounds, zlo, zhi):
+    plt.close()  
+    print(len(atom_forces))
+    atom_forces         = filter_by_height(atom_forces, zlo, zhi)
+    print(len(atom_forces))
+    values              = [ af.fz for af in atom_forces ]
+    fz_av               = np.mean(values)
+    fz_sum              = np.sum(values)
+    print("avg sum:" , fz_av, fz_sum, np.max(values), np.min(values))
+    
+    points              = np.array( [ [af.x for af in atom_forces], [af.y for af in atom_forces] ] ).T
+    print( points.shape )
+    points, values      = get_avg_points_and_vals(atom_forces, bounds, 1.5)
+    fz_av               = np.mean(values)
+    fz_sum              = np.sum(values)
+    print("avg sum:" ,fz_av, fz_sum)
+    nx                  = 2 * int(bounds.xhi - bounds.xlo)
+    ny                  = 2 * int(bounds.yhi - bounds.ylo)
+    xs                  = np.linspace(bounds.xlo - 0.5, bounds.xhi + 0.5, nx)
+    ys                  = np.linspace(bounds.ylo - 0.5, bounds.yhi + 0.5, ny)
+    grid_x, grid_y      = np.meshgrid(xs, ys)
+    grid_fz             = griddata(points, values, (grid_x, grid_y), method='linear', fill_value = fz_av)
+    #print(np.isnan(grid_fz).sum(), np.isnan(values).sum())
+    force_fft           = np.fft.fft2(grid_fz)
+    pow_spec            = force_fft * np.conj(force_fft) / len(force_fft)
+    force_autocorr      = np.fft.ifft2(pow_spec)
+    #print(force_fft)
+   # print(pow_spec)
+    #print(force_autocorr)
+    #plt.imshow(grid_fz.T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
+    #plt.imshow(np.abs(np.fft.ifftshift(pow_spec_mult)).T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
+    plt.imshow(np.abs(np.fft.ifftshift(force_autocorr)).T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
+    #plt.plot(points[:,0], points[:,1], 'k.', ms=1)
+    plt.colorbar()
+    plt.show()
+
+        
+
 fig, ax = plt.subplots()
 line1, = ax.plot([], [], 'bo', label = "Average Displacements")
 ax.set(xlim=(-40, 40), ylim=(0, 0.5))
@@ -209,7 +264,7 @@ def init():
     return line1, line2, depth_text
 
 def animate(i):
-    z_bins, drs, n_densities = binstats.all_bins[i], binstats.all_drs[i], binstats.all_dens[i]
+    z_bins, drs, n_densities = binstats.all_bins[i], binstats.all_dfs[i], binstats.all_dens[i]
     time = binstats.all_ts[i]
     line1.set_data(z_bins, drs)
     line2.set_data(z_bins, n_densities)
@@ -233,6 +288,6 @@ def animate_fluctuations():
     plt.show()
     #anim.save('hertz_pressure_M%d_N%d_T%g_r%d.mp4' %(css.M, css.N, css.T, css.r), dpi=200, writer=writer)
     
-    
-binstats = read_fluctuations("fluctuations_M2000_N256_T0.0001_r0_cang0.out")
-animate_fluctuations()
+
+#binstats = read_fluctuations("fluctuations_M2000_N256_T0.0001_r0_cang0.out")
+#animate_fluctuations()

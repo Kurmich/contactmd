@@ -644,6 +644,7 @@ def get_total_forces(atomic_forces):
         fx += af.fx
         fy += af.fy
         fz += af.fz
+    print(fx, fy, fz)
     return fx, fy, fz
 
 
@@ -1148,7 +1149,8 @@ def vis_layers(css):
     filename = filenames.vis
     all_res, bounds, times = get_interactions(filename, t_init, t_final, types, interacting = False)
     atom_forces = all_res[0][atype]    
-    plot_layer_density(atom_forces)
+    #plot_layer_density(atom_forces)
+    autocorrfz(atom_forces, bounds[0], -50, -27)
     
 
         
@@ -1204,10 +1206,14 @@ def main():
     args = parser.parse_args()
     Temp = 0.0001
     is_stiff = True
+    args.stiff = is_stiff
+    args.r    = 0
+    #args.conetip = True
+    args.cang = 0
     global css, filenames
     print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
-    css.set_analysisvals(10, 25, 1)
+    css.set_analysisvals(30, 31, 1)
     filenames = FileNames(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     print(args.stiff, args.M)
     #plot_nforce_vs_cont_area()
@@ -1216,9 +1222,10 @@ def main():
     #oligomer_type = 3
     #sargs.hardness = True
     #vis_thickness(css)
-    del_z = 1.5
-    visualize_fluctuations(css, filenames, del_z)
-    #vis_layers(css)
+    del_z = 1.0
+    #visualize_fluctuations(css, filenames, del_z)
+    #vis_hardness(css)
+    vis_layers(css)
     return
     if args.hardness:
         vis_hardness(css)
@@ -1227,11 +1234,6 @@ def main():
         visualize_lj_bond_stats(css, args.delta_r)
     if args.stretches:
         visualize_stretches(css)
-    #vis_hardness(css)
-    #visualize_particles(css)
-    #visualize_stretches(css)
-    #vis_hardness(css)
-    #visualize_lj_bond_stats(css)
     return
 
 if __name__=="__main__":

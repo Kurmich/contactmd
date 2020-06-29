@@ -77,6 +77,33 @@ def construct_cell_list(atom_forces, bounds, rc):
     #cells stores indices of atom_forces in an array
     return cells
 
+
+def construct_cell_list_2D(atom_forces, bounds, rc):
+    #numnber of cells in x, y and z dimensions
+    Nx, Ny = int(bounds.Lx//rc), int(bounds.Ly//rc)
+    print(bounds.get_bounds_text())
+    print(bounds.Lx, bounds.Ly, bounds.Lz)
+    N = Nx * Ny #total number of cells
+    rcx, rcy = bounds.Lx/Nx, bounds.Ly/Ny
+    #create cells
+    cells = []
+    print(Nx, Ny, N, rcx, rcy)
+    for i in range(N): cells.append(BoxCell(i))
+    wrap_coordinates(atom_forces, bounds)
+    for i in range(len(atom_forces)):
+        af = atom_forces[i]
+        #make all coordinates positive
+        x = (af.x - bounds.xlo)
+        y = (af.y - bounds.ylo)
+        #get cell indices in x, y, z directions
+        cx, cy = x//rcx, y//rcy
+        if cx < 0 or cy < 0 : print("Error, cx: %d cy: %d" %(cx, cy))
+        #linearize cell index to get index in an array
+        c_idx = int(cy + Ny*cx)
+        cells[c_idx].elements.append(i)
+    #cells stores indices of atom_forces in an array
+    return cells
+
 def get_displ_pbr(x_next, x_prev, L):
         #get displacement vector pointing form x_prev to x_next for periodic boundary condition
         #periodicity is L

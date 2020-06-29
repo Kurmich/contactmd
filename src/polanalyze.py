@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from data import data
 from atom import Monomer
 from boxcell import *
+from topology import *
 
 forces = [500.0]
 poisson = 0.5
@@ -398,6 +399,17 @@ def read_goal(filename):
 #def get_edge_avg(atom_forces):
 
 
+def vis_layers(M, N, T):
+    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g_nve_smooth" %(M,N,T)
+    graph, headers, sections = get_graph(filename, M, N)
+    polymers = graph.group_polymers()
+    pol_melt = PolymerMelt(polymers, headers, sections)
+    all_monomers = []
+    for polymer in pol_melt.polymers:
+        all_monomers.extend(polymer.monomers)
+    plot_layer_density(all_monomers)
+    
+
 def add_angles(M, N):
     #'''  
     filename = "../lammpsinput/melt_stiff_wallz_M%d_N%d.data" %(M,N)
@@ -449,11 +461,12 @@ def check_equilibration(M, N):
 
 def main():
     xs, ys = read_goal("goal.txt")
-    M = 7000
+    M = 2000
     N = 256
-    T = 0.2
+    T = 0.1
     #check_equilibration(M, N)
-    add_angles(M, N)
+    vis_layers(M, N, T)
+    #add_angles(M, N)
     #check_equilibration(M, N)
     #clean_quenched_file(M, N, T)
 #    return
