@@ -33,7 +33,9 @@ class RoughSurface:
         qr_sq = self.spectrum.qr**2
         freq_x   = np.fft.fftfreq(self.Nx, 1/self.Nx) * 2 * np.pi / self.Lx
         freq_y   = np.fft.fftfreq(self.Ny, 1/self.Ny) * 2 * np.pi / self.Ly
+        
         xx, yy = np.meshgrid(freq_x, freq_y)
+        print(xx.shape, yy.shape, freq_x.size, freq_y.size)
         q_sq_mat   = xx**2 + yy**2
         self.psd = np.zeros((self.Nx, self.Ny))
         for i in range(self.Nx):
@@ -66,14 +68,28 @@ class RoughSurface:
         N_half = int(N/2)
         print(M_half, N_half)
         phases_centered[0:(M_half+1), :] =  np.random.uniform(0, 2*np.pi, (M_half + 1, N) )
+        #phases_centered[:, N_half] = -10
         X = M - M_half - 1
-        phases_centered[M_half+1:M, :] = -np.flip(np.flip(phases_centered[0:X, :], axis = 0), axis=1)
-        lo, hi = 0, N-1
-        while hi >= lo:
-            phases_centered[M_half, lo] = - phases_centered[M_half, hi]
-            lo += 1
-            hi -= 1
-            if lo == hi: phases_centered[M_half, lo] = 0
+        if M%2 == 1:
+            phases_centered[M_half+1:M, :] = -np.flip(np.flip(phases_centered[0:X, :], axis = 0), axis=1)
+            lo, hi = 0, N-1
+            while hi >= lo:
+                phases_centered[M_half, lo] = - phases_centered[M_half, hi]
+                lo += 1
+                hi -= 1
+                if lo == hi: phases_centered[M_half, lo] = 0
+        else:
+            
+            phases_centered[M_half+1:M, 1:] = -np.flip(np.flip(phases_centered[1:X+1, 1:], axis = 0), axis=1)
+            phases_centered[0, :] = 0
+            if N%2 == 0: phases_centered[:, 0] = 0
+            lo, hi = 1, N-1
+            while hi >= lo:
+                phases_centered[M_half, lo] = - phases_centered[M_half, hi]
+                lo += 1
+                hi -= 1
+                if lo == hi: phases_centered[M_half, lo] = 0
+        
         return np.fft.ifftshift(phases_centered)
     def vis_surface(self):
         fig = plt.figure()
@@ -112,13 +128,13 @@ class RoughSurface:
         plt.show()
 
 a = 2**(1/6)/2
-L = 11
+L = 10
 qs = 2 * np.pi / a
 qL = 2 * np.pi / L
 print(qs, qL)
 spectrum   = Spectrum(qL, qL*2, qs, 0.7, 1)   
-L_vec = (11,11) 
-N_vec = (11,11)  
+L_vec = (10,10) 
+N_vec = (10,10)  
 r = RoughSurface(L_vec, N_vec, spectrum)
 r.random_phase_surface()
 r.vis_surface()
