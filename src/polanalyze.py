@@ -463,12 +463,12 @@ def main():
     xs, ys = read_goal("goal.txt")
     M = 2000
     N = 256
-    T = 0.1
+    T = 0.0001
     #check_equilibration(M, N)
-    vis_layers(M, N, T)
+    #vis_layers(M, N, T)
     #add_angles(M, N)
     #check_equilibration(M, N)
-    #clean_quenched_file(M, N, T)
+    clean_quenched_file(M, N, T)
 #    return
     '''
    

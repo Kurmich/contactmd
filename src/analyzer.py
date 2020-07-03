@@ -1210,10 +1210,11 @@ def main():
     args.r    = 0
     #args.conetip = True
     args.cang = 0
+    args.vz = 0.001
     global css, filenames
     print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
-    css.set_analysisvals(30, 31, 1)
+    css.set_analysisvals(1, 60, 1)
     filenames = FileNames(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     print(args.stiff, args.M)
     #plot_nforce_vs_cont_area()
@@ -1224,8 +1225,8 @@ def main():
     #vis_thickness(css)
     del_z = 1.0
     #visualize_fluctuations(css, filenames, del_z)
-    #vis_hardness(css)
-    vis_layers(css)
+    vis_hardness(css)
+    #vis_layers(css)
     return
     if args.hardness:
         vis_hardness(css)

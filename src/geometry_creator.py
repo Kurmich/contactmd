@@ -447,7 +447,7 @@ def create_plane_tip(Dx, Dy, Dz, d, units, atom_style):
     sim_str = SimulationStructure(units, [substrate_unit])
     sim_str.set_borders()
     sim_str.visualize()
-    sim_str.create_lammps_input("../lammpsinput/tip_r%d_Dx%d_cang%d.dat" %(radius, int(Dx), cone_angle))
+    sim_str.create_lammps_input("../lammpsinput/flattip_Dx%d.data" %(int(Dx)))
 
 
 def create_spherical_tip(Dx, Dy, Dz, d, units, radius, atom_style):
@@ -461,16 +461,16 @@ def create_spherical_tip(Dx, Dy, Dz, d, units, radius, atom_style):
 
 def main():
     d = 2**(1/6)
-    Dx, Dy, Dz = 91.3, 91.3, 3
+    Dx, Dy, Dz = 86.0, 86.0, 3
     Dz_tip = (2**(1/2)) * d
-    radius = 25
+    radius = 0
     units = 'lj'
     atom_style = 'bond'
     cone_angle = 30
 #    substrate = create_substrate('fcc', '001', d,  Dx, Dy, Dz)
     d /= 2
-    #create_plane_tip(Dx, Dy, Dz, d, units, atom_style)
-    create_spherical_tip(Dx, Dy, Dz, d, units, radius, atom_style)
+    create_plane_tip(Dx, Dy, Dz, d, units, atom_style)
+    #create_spherical_tip(Dx, Dy, Dz, d, units, radius, atom_style)
     return
     substrate_unit = StructureUnitParams('substrate', 'substrate', 'fcc', '001', d, 1, 1.0, atom_style,  Dx, Dy, Dz)
     

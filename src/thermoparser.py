@@ -328,18 +328,18 @@ def get_scale_shift(l1, l2):
 def main():
     M, N = 2000, 256
     T = 0.1
-    Ts = [0.2]
+    Ts = [0.1]
     drs = [0.3, 0.6, 0.9, 1.2]
     R, cang = 25, 45
-    '''for T in Ts:
+    for T in Ts:
         filename = "../outputfiles/deform_M%d_N%d_T%g.txt" %(M, N, T)
         compression_stats(filename, T)
-    plt.show()'''
+    plt.show()
     '''filename = "../outputfiles/autocorr_stiff_M%d_N%d_T%g.txt" %(M, N, T)
     autocorr_stats(filename)'''
-    heat_filename = "../outputfiles/spheretip_stiff_M%d_N%d_T%g_sphR%d_nve.txt" %(M, N, T, R)
+    '''heat_filename = "../outputfiles/spheretip_stiff_M%d_N%d_T%g_sphR%d_nve.txt" %(M, N, T, R)
     bond_filename = "../outputfiles/stats_stiff_M%d_N%d_T%g_r%d_p%g.out" %(M, N, T, R, 0.3)
-    impose_heat_bonds(heat_filename, bond_filename)
+    impose_heat_bonds(heat_filename, bond_filename)'''
     '''for T in Ts:
         for dr in drs:
             bond_filename = "../outputfiles/stats_stiff_M%d_N%d_T%g_r%d_p%g.out" %(M, N, T, R, dr)

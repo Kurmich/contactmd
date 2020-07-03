@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from dumpparser import *
 from matplotlib.animation import FuncAnimation
+from scipy.ndimage import gaussian_filter
 import matplotlib.animation as animation
 from scipy.interpolate import griddata
 from boxcell import *
@@ -234,21 +235,59 @@ def autocorrfz(atom_forces, bounds, zlo, zhi):
     ys                  = np.linspace(bounds.ylo - 0.5, bounds.yhi + 0.5, ny)
     grid_x, grid_y      = np.meshgrid(xs, ys)
     grid_fz             = griddata(points, values, (grid_x, grid_y), method='linear', fill_value = fz_av)
-    #print(np.isnan(grid_fz).sum(), np.isnan(values).sum())
+    print()
+    print(np.isnan(grid_fz).sum(), np.isnan(values).sum())
     force_fft           = np.fft.fft2(grid_fz)
     pow_spec            = force_fft * np.conj(force_fft) / len(force_fft)
+    print(pow_spec.shape, grid_fz.shape)
+    pow_spec = np.fft.ifftshift(smooth_psd(np.fft.fftshift(pow_spec).real))
     force_autocorr      = np.fft.ifft2(pow_spec)
+    #pow_spec = smooth_psd(np.fft.fftshift(pow_spec).real)
     #print(force_fft)
-   # print(pow_spec)
+    #print(pow_spec)
     #print(force_autocorr)
-    #plt.imshow(grid_fz.T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
-    #plt.imshow(np.abs(np.fft.ifftshift(pow_spec_mult)).T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
-    plt.imshow(np.abs(np.fft.ifftshift(force_autocorr)).T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
-    #plt.plot(points[:,0], points[:,1], 'k.', ms=1)
+    plt.imshow(grid_fz.T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
+    #plt.imshow(np.fft.fftshift(pow_spec.real).T)
+    #plt.imshow(np.abs(np.fft.ifftshift(pow_spec)).T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
+    #plt.imshow(np.log(np.abs(np.fft.ifftshift(force_autocorr))).T)
+    plt.plot(points[:,0], points[:,1], 'k.', ms=1)
     plt.colorbar()
     plt.show()
 
+
+def smooth_psd(psd):
+    M,N = psd.shape
+    X   = M*N
+    r_min, r_max = 0, int(( (M/2)**2 + (N/2)**2 )**(1/2))
+    stop = math.log(r_max, 1.2)
+    rs = np.logspace(-3, stop, 15, base = 1.2)
+    print(rs)
+    dr = 1
+    quadruples = []
+    for i in range(M):
+        for j in range(N):
+            quadruples.append([i, j, psd[i,j], ((i-M/2)**2 + (j-N/2)**2)**(1/2)])
+    quadruples = sorted(quadruples, key = lambda vals: vals[3])
+    ilo, ihi = 0, 10**10
+    for i in range(1, len(rs)):
+        r_next = rs[i]
+        ihi = ilo
+        while ihi < M*N and quadruples[ihi][3] < r_next: ihi += 1
+        val = 0
+        for i in range(ilo, ihi):
+            val += quadruples[i][2]
+        val /= (ihi-ilo)
+        for i in range(ilo, ihi):
+            quadruples[i][2] = val
+        print(r_next,val, ihi-ilo)
+        ilo = ihi
+    for i in range(X):
+        k,l = quadruples[i][0], quadruples[i][1]
+        psd[k, l] = quadruples[i][2]
+    psd = gaussian_filter(psd, sigma=2)
+    return psd
         
+           
 
 fig, ax = plt.subplots()
 line1, = ax.plot([], [], 'bo', label = "Average Displacements")
