@@ -34,7 +34,7 @@ class RoughSurface:
         freq_x   = np.fft.fftfreq(self.Nx, 1/self.Nx) * 2 * np.pi / self.Lx
         freq_y   = np.fft.fftfreq(self.Ny, 1/self.Ny) * 2 * np.pi / self.Ly
         
-        xx, yy = np.meshgrid(freq_x, freq_y)
+        xx, yy = np.meshgrid(freq_x, freq_y, indexing='ij')
         print(xx.shape, yy.shape, freq_x.size, freq_y.size)
         q_sq_mat   = xx**2 + yy**2
         self.psd = np.zeros((self.Nx, self.Ny))
@@ -71,24 +71,35 @@ class RoughSurface:
         #phases_centered[:, N_half] = -10
         X = M - M_half - 1
         if M%2 == 1:
-            phases_centered[M_half+1:M, :] = -np.flip(np.flip(phases_centered[0:X, :], axis = 0), axis=1)
             lo, hi = 0, N-1
+            
+            if N%2 == 0:
+                phases_centered[M_half+1:M, 1:] = -np.flip(np.flip(phases_centered[0:X, 1:], axis = 0), axis=1)
+                lo, hi = 1, N-1
+                phases_centered[:, 0] = 0
+            else:
+                phases_centered[M_half+1:M, :] = -np.flip(np.flip(phases_centered[0:X, :], axis = 0), axis=1)
+                
             while hi >= lo:
                 phases_centered[M_half, lo] = - phases_centered[M_half, hi]
                 lo += 1
                 hi -= 1
                 if lo == hi: phases_centered[M_half, lo] = 0
         else:
-            
-            phases_centered[M_half+1:M, 1:] = -np.flip(np.flip(phases_centered[1:X+1, 1:], axis = 0), axis=1)
-            phases_centered[0, :] = 0
-            if N%2 == 0: phases_centered[:, 0] = 0
             lo, hi = 1, N-1
+            if N%2 == 0:
+                phases_centered[M_half+1:M, 1:] = -np.flip(np.flip(phases_centered[1:X+1, 1:], axis = 0), axis=1)
+                phases_centered[:, 0] = 0               
+            else:
+                phases_centered[M_half+1:M, :] = -np.flip(np.flip(phases_centered[1:X+1, :], axis = 0), axis=1)
+                lo, hi = 0, N-1
+            phases_centered[0, :] = 0
             while hi >= lo:
-                phases_centered[M_half, lo] = - phases_centered[M_half, hi]
-                lo += 1
-                hi -= 1
-                if lo == hi: phases_centered[M_half, lo] = 0
+                    phases_centered[M_half, lo] = - phases_centered[M_half, hi]
+                    lo += 1
+                    hi -= 1
+                    if lo == hi: phases_centered[M_half, lo] = 0
+            
         
         return np.fft.ifftshift(phases_centered)
     def vis_surface(self):
@@ -98,7 +109,7 @@ class RoughSurface:
         Nx, Ny = Z.shape
         x = np.arange(0, Nx, 1)
         y = np.arange(0, Ny, 1)
-        X, Y = np.meshgrid(x, y)
+        X, Y = np.meshgrid(x, y, indexing='ij')
         
         print(Z.shape, X.shape, Y.shape)
         ax.plot_surface(X, Y, Z,cmap=cm.jet)
@@ -128,13 +139,13 @@ class RoughSurface:
         plt.show()
 
 a = 2**(1/6)/2
-L = 10
+L = 20
 qs = 2 * np.pi / a
 qL = 2 * np.pi / L
 print(qs, qL)
 spectrum   = Spectrum(qL, qL*2, qs, 0.7, 1)   
-L_vec = (10,10) 
-N_vec = (10,10)  
+L_vec = (21,20) 
+N_vec = (21,20)  
 r = RoughSurface(L_vec, N_vec, spectrum)
 r.random_phase_surface()
 r.vis_surface()
