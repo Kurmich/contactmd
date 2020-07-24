@@ -127,7 +127,7 @@ class data:
         sections = {}
         while 1:
             found = False
-            #print("current line %s" %line)
+            print("current line %s" %line)
             if line.isspace():
                 line = file.readline()
                 continue
@@ -143,6 +143,7 @@ class data:
                         list.append(file.readline())
                     sections[keyword] = list
             if not found:
+                print(line)
                 raise Exception("invalid section %s in data file" % line)
             file.readline()
             line = file.readline()
@@ -154,6 +155,57 @@ class data:
         file.close()
         self.headers = headers
         self.sections = sections
+        
+    def isolate(self, types):
+        "Remove types of atoms that do not belong to types"
+        new_d = data()
+        ids   = set()
+        removed_bonds  = 0
+        removed_angles = 0
+        print("da", len(self.sections.keys()),len(skeywords))
+        for pair in skeywords: print(pair)
+        for pair in skeywords:
+            keyword = pair[0]
+            print("Keyword: " , keyword)
+            if keyword in self.sections.keys():
+                new_d.sections[keyword] = []
+                for line in self.sections[keyword]:
+                    #print(line)
+                    words = line.split()
+                    if keyword == "Masses":
+                        type = int(words[0])
+                        if type in types:
+                            new_d.sections[keyword].append(line)
+                    if keyword == "Atoms":
+                        id   = int(words[0])
+                        type = int(words[2])
+                        if type in types:
+                            new_d.sections[keyword].append(line)
+                        else:
+                            ids.add(id)
+                    if keyword == "bonds" or keyword == "Bonds":
+                        id1 = int(words[-1])
+                        id2 = int(words[-2])
+                        if id1 not in ids and id2 not in ids:
+                            new_d.sections[keyword].append(line)
+                        else:
+                            removed_bonds += 1
+                    if keyword == "angles" or keyword == "Angles":
+                        id1 = int(words[-1])
+                        id2 = int(words[-2])
+                        id3 = int(words[-3])
+                        if id1 not in ids and id2 not in ids and id3 not in ids:
+                            new_d.sections[keyword].append(line)
+                        else:
+                            removed_angles += 1
+                    if keyword == "Velocities":
+                        id   = int(words[0])
+                        if id not in ids:
+                            new_d.sections[keyword].append(line)
+        atom_count = int(self.headers["atoms"]) - len(ids)                 
+        new_d.headers = deepcopy(self.headers)
+        new_d.headers["atoms"] = str(atom_count)
+        return new_d
 
     def append(self, other, sep_z):
         """Append contents of other data file to this file"""
@@ -456,22 +508,43 @@ skeywords = [["Masses", "atom types"],
 def add_sphere_tip(M, N, T, r, Dx, sep_z):
     sep_z = 2**(1/6) + 0.5
     d = data("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g_smooth.data" %(M, N, T))
-    d2 = data("../lammpsinput/flattip_Dx%d.data" %(Dx))
-    #d2 = data("../lammpsinput/sphere_r%d_Dx%d.dat" %(r, Dx))
+    #d2 = data("../lammpsinput/flattip_Dx%d.data" %(Dx))
+    d2 = data("../lammpsinput/sphere_r%d_Dx%d.dat" %(r, Dx))
     d.append(d2, sep_z)
     d.write("../lammpsinput/spheretip_data_quenched_stiff_M%d_N%d_T%g_sphR%d_smooth" %(M, N, T, r))
     print("sepz: %g" %sep_z)
     
 
+
+def add_rough_surface(M, N, T, r, Dx, Dy, sep_z):
+    sep_z = 0.858
+    d = data("../lammpsinput/data_eq_stiff_M%d_N%d" %(M, N))
+    #d2 = data("../lammpsinput/flattip_Dx%d.data" %(Dx))
+    d2 = data("../lammpsinput/rough_Lx%d_Ly%d.data" %(Dx, Dy))
+    d.append(d2, sep_z)
+    d.write("../lammpsinput/data_eq_w_roughwall_stiff_M%d_N%d" %(M, N))
+    print("sepz: %g" %sep_z)
+    
+    
+def remove_atoms(filename, needed_types):
+    d = data(filename)
+    new_d = d.isolate(needed_types)
+    new_filename = "../lammpsinput/filtered"
+    new_d.write(new_filename)
+
 def main():
     M = 2000
     N = 256
-    T = 0.1
-    r = 0#30
+    T = 0.2
+    r = 25#30
     cone_ang = 0#30
-    Dx = 86#85
+    Dx = 91#85
+    Dy = Dx
     sep_z = 2**(1/6) + 0.5
+    #remove_atoms("../lammpsinput/quenched_rough_stiff_M2000_N256_T0.15_smooth", [1])
+    
     add_sphere_tip(M, N, T, r, Dx, sep_z)
+    #add_rough_surface(M, N, T, r, Dx, Dy, sep_z)
     return
     d = data("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g.data" %(M, N, T))
 #    d2 = data("../lammpsinput/flattip_Dx%d.dat" %(Dx))

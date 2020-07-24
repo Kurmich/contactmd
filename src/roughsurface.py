@@ -10,14 +10,20 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
+import argparse
+from data import data
 
 class Spectrum:
     def __init__(self, qL, qr, qs, H, C):
-        self.qL     = qL #shortest wave vector (Longest wavelength)
-        self.qr     = qr #roll-off wave vector (Intermediate wavelength)
-        self.qs     = qs #longest wave vector  (shortest wavelength)
-        self.H      = H  #hurst exponent
-        self.C      = C
+        assert qL < qr and qr < qs, "qs > qr > qL is required. Currently qs: %g, qr: %g, qL: %g" %(qs, qr, qL)
+        self.qL          = qL #shortest wave vector (Longest wavelength)
+        self.qr          = qr #roll-off wave vector (Intermediate wavelength)
+        self.qs          = qs #longest wave vector  (shortest wavelength)
+        self.H           = H  #hurst exponent
+        self.C           = C / qL**(2*(H+1))
+        self.description = "qL: %g qr: %g qs: %g H: %g C: %g" %(qL, qr, qs, H, self.C)
+    def get_info(self):
+        return self.description
         
 epsilon = 10**(-10)       
 class RoughSurface:
@@ -33,84 +39,85 @@ class RoughSurface:
         qr_sq = self.spectrum.qr**2
         freq_x   = np.fft.fftfreq(self.Nx, 1/self.Nx) * 2 * np.pi / self.Lx
         freq_y   = np.fft.fftfreq(self.Ny, 1/self.Ny) * 2 * np.pi / self.Ly
-        
         xx, yy = np.meshgrid(freq_x, freq_y, indexing='ij')
-        print(xx.shape, yy.shape, freq_x.size, freq_y.size)
+        
         q_sq_mat   = xx**2 + yy**2
         self.psd = np.zeros((self.Nx, self.Ny))
         for i in range(self.Nx):
             for j in range(self.Ny):
                 q_sq = q_sq_mat[i, j]
-                print(i, j , q_sq)
                 if q_sq < qL_sq  or  q_sq > qs_sq:
                     continue
                 if q_sq >= qL_sq and q_sq < qr_sq:
                     self.psd[i, j] = self.spectrum.C
                 else:
                     self.psd[i, j] = self.spectrum.C / (q_sq/qr_sq)**(self.spectrum.H + 1)
-        print(self.psd)
         self.q_sq_mat = q_sq_mat
-        print(xx.shape, yy.shape, freq_x.size, freq_y.size)
-        
+    
+    def filtering_algorithm_surface(self):
+        gauss_mat = self.get_rand_matrix(distribution = 'gaussian')
+        H =  np.fft.fft2(gauss_mat) * np.sqrt(self.psd)
+        self.heights = (self.Lx**2 + self.Ly**2)**(1/4) * np.fft.ifft2(H)
+    
     def random_phase_surface(self):
-        phases = self.get_rand_uniform_phases()
+        phases = self.get_rand_matrix()
         H = np.exp(phases*1j) * np.sqrt(self.psd)
         self.heights = (self.Lx**2 + self.Ly**2)**(1/2) * np.fft.ifft2(H)
-        print(self.heights)
-        fig, (ax1, ax2) = plt.subplots(1, 2)
-        ax1.imshow(phases)
-        ax2.imshow(np.fft.fftshift(phases))
-        plt.show()
-    def get_rand_uniform_phases(self):
+        
+    def get_rand_matrix(self, distribution = 'uniform', visual = False):
         M, N = self.psd.shape
         phases_centered = np.zeros((M,N))
         M_half = int(M/2)
-        N_half = int(N/2)
-        print(M_half, N_half)
-        phases_centered[0:(M_half+1), :] =  np.random.uniform(0, 2*np.pi, (M_half + 1, N) )
+        #N_half = int(N/2)
+        #print(M_half, N_half)
+        if distribution == 'uniform':
+            phases_centered[0:(M_half+1), :] =  np.random.uniform(0, 2*np.pi, (M_half + 1, N) )
+        elif distribution == 'gaussian':
+            mu, sigma = 0, 1
+            phases_centered[0:(M_half+1), :] =  np.random.normal(mu, sigma, (M_half + 1, N) )
         #phases_centered[:, N_half] = -10
         X = M - M_half - 1
+        lo, hi = 0, N-1
         if M%2 == 1:
-            lo, hi = 0, N-1
-            
+            lo = 0
             if N%2 == 0:
                 phases_centered[M_half+1:M, 1:] = -np.flip(np.flip(phases_centered[0:X, 1:], axis = 0), axis=1)
-                lo, hi = 1, N-1
                 phases_centered[:, 0] = 0
+                lo = 1
             else:
-                phases_centered[M_half+1:M, :] = -np.flip(np.flip(phases_centered[0:X, :], axis = 0), axis=1)
-                
-            while hi >= lo:
-                phases_centered[M_half, lo] = - phases_centered[M_half, hi]
-                lo += 1
-                hi -= 1
-                if lo == hi: phases_centered[M_half, lo] = 0
+                phases_centered[M_half+1:M, :]  = -np.flip(np.flip(phases_centered[0:X, :], axis = 0),  axis=1)
         else:
-            lo, hi = 1, N-1
+            lo = 1
             if N%2 == 0:
                 phases_centered[M_half+1:M, 1:] = -np.flip(np.flip(phases_centered[1:X+1, 1:], axis = 0), axis=1)
                 phases_centered[:, 0] = 0               
             else:
-                phases_centered[M_half+1:M, :] = -np.flip(np.flip(phases_centered[1:X+1, :], axis = 0), axis=1)
-                lo, hi = 0, N-1
+                phases_centered[M_half+1:M, :]  = -np.flip(np.flip(phases_centered[1:X+1, :], axis = 0),  axis=1)
+                lo = 0
             phases_centered[0, :] = 0
-            while hi >= lo:
-                    phases_centered[M_half, lo] = - phases_centered[M_half, hi]
-                    lo += 1
-                    hi -= 1
-                    if lo == hi: phases_centered[M_half, lo] = 0
+        while hi >= lo:
+                phases_centered[M_half, lo] = - phases_centered[M_half, hi]
+                lo += 1
+                hi -= 1
+                if lo == hi: phases_centered[M_half, lo] = 0
             
-        
+        if visual:
+            fig, (ax1, ax2) = plt.subplots(1, 2)
+            ax1.imshow(phases_centered)
+            ax2.imshow(np.fft.ifftshift(phases_centered))
+            plt.show()
         return np.fft.ifftshift(phases_centered)
     def vis_surface(self):
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        assert np.sum(self.heights.imag) < 0.01, "Generated surface heights have substantial imaginary part"
+        
         Z = self.heights.real
+        
         Nx, Ny = Z.shape
         x = np.arange(0, Nx, 1)
         y = np.arange(0, Ny, 1)
         X, Y = np.meshgrid(x, y, indexing='ij')
-        
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
         print(Z.shape, X.shape, Y.shape)
         ax.plot_surface(X, Y, Z,cmap=cm.jet)
         
@@ -129,24 +136,90 @@ class RoughSurface:
         for r in range(Dr):
             for c in range(Dc):
                 if self.psd[r, c] == 0: continue
-                qs.append( self.q_sq_mat[r,c] )
+                qs.append( (self.q_sq_mat[r,c])**(1/2) )
                 cs.append(self.psd[r, c])
-        ax1.imshow(np.fft.fftshift(self.psd))
+        ax1.imshow(np.fft.fftshift(self.psd), extent=(-np.pi, np.pi, -np.pi, np.pi))
         #ax1.colorbar()
         ax2.scatter(qs, cs)
+        ax2.set_xlabel("log q")
+        ax2.set_ylabel("log C")
         ax2.set_yscale('log')
         ax2.set_xscale('log')
         plt.show()
+    def write_lammps_file(self, filename):
+        d = data()
+        d.title = "Lammps data file; Rough surface stats - " + self.spectrum.get_info()
+        d.headers = {}
+        d.sections = {}
+        dd = 2**(1/6)
+        dx, dy = dd/2, dd/2
+        atom_type       = 1
+        M, N      = self.heights.shape
+        Zs       = self.heights.real
+        xlo, ylo = - (M*dx)/2, -(N*dy)/2
+        d.headers["zlo zhi"] = (np.min(Zs), np.max(Zs))
+        d.headers["xlo xhi"] = (xlo, xlo + M*dx)
+        d.headers["ylo yhi"] = (ylo, ylo + N*dy)
+        d.headers["atoms"]   = M*N
+        d.headers["atom types"] = atom_type
+        atom_lines      = []
+        velocity_lines  = []
+        atom_id         = 1
+        for i in range(M):
+            for j in range(N):
+                atom_line = "%d %d %d %g %g %g %d %d %d\n" % (atom_id, 0, atom_type, xlo+i*dx, ylo+j*dy, Zs[i, j], 0, 0, 0)
+                atom_lines.append(atom_line)
+                velocity_lines.append("%d 0 0 0\n" %atom_id)
+                atom_id   += 1        
+        d.sections["Atoms"]       = atom_lines
+        d.sections["Velocities"]  = velocity_lines
+        d.sections["Masses"]      = ["%d %g\n" %(atom_type, 1)]
+        d.write(filename)
 
+
+def main():
+    parser = argparse.ArgumentParser(description = "Rough surface generation")
+    parser.add_argument('--qs', type=float, default = 11.2,    help = 'Longest wave vector  (shortest wavelength).')
+    parser.add_argument('--qr', type=float, default = 4,    help = 'Roll-off wave vector (Intermediate wavelength).')
+    parser.add_argument('--qL', type=float, default = 3,    help = 'Shortest wave vector (Longest wavelength).')
+    parser.add_argument('--H',  type=float, default = 0.5,    help = 'Hurst exponent')
+    parser.add_argument('--C',  type=float, default = 1,      help = 'Power spectrum constant')
+    parser.add_argument('--Lx', type=float, default = 96.7,     help = 'Length in x axis.')
+    parser.add_argument('--Ly', type=float, default = 96.7,     help = 'Length in y axis.')
+    parser.add_argument('--Nx', type=int  , default = 100,     help = 'Length in x axis.')
+    parser.add_argument('--Ny', type=int  , default = 100,     help = 'Length in y axis.')
+    args = parser.parse_args()
+    args.C = 0.002
+    args.qL = 2 * np.pi / args.Lx
+    args.qr = 2 * args.qL
+    args.qs = 2 * np.pi
+    spectrum   = Spectrum(args.qL, args.qr, args.qs, args.H, args.C)
+    d = 2**(1/6)
+    dx, dy = d/2, d/2
+    args.Nx, args.Ny = int(args.Lx/dx), int(args.Ly/dy)
+    N_vec = (args.Nx, args.Ny)
+    L_vec = (args.Lx, args.Ly)
+    r = RoughSurface(L_vec, N_vec, spectrum)
+    r.filtering_algorithm_surface()
+    #r.random_phase_surface()
+    r.vis_surface()
+    r.vis_psd()
+    r.write_lammps_file("../lammpsinput/rough_Lx%d_Ly%d.data" %(args.Lx, args.Ly))
+
+if __name__=="__main__":
+    main()
+'''
 a = 2**(1/6)/2
-L = 20
+L = 100
 qs = 2 * np.pi / a
 qL = 2 * np.pi / L
-print(qs, qL)
-spectrum   = Spectrum(qL, qL*2, qs, 0.7, 1)   
-L_vec = (21,20) 
-N_vec = (21,20)  
+H = 0.5
+print(qs, qL, 2*qL)
+spectrum   = Spectrum(qL, qL*2, qs, H, 1)   
+L_vec = (L,L) 
+N_vec = (2*L,2*L)  
 r = RoughSurface(L_vec, N_vec, spectrum)
-r.random_phase_surface()
+r.filtering_algorithm_surface()
+#r.random_phase_surface()
 r.vis_surface()
-#r.vis_psd()
+#r.vis_psd()'''

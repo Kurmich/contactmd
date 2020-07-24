@@ -197,7 +197,7 @@ def get_pos_force_fluctuations(atom_forces, atom_forces_p, z_idx_tuples, bin_ind
 
 
 
-def get_avg_points_and_vals(atom_forces, bounds, rc):
+def get_avg_points_and_vals(atom_forces, bounds, rc, vis = False):
     cells = construct_cell_list_2D(atom_forces, bounds, rc)
     xs, ys, values = [], [], []
     for cell in cells:
@@ -211,7 +211,11 @@ def get_avg_points_and_vals(atom_forces, bounds, rc):
         xs.append(x_sum/N)
         ys.append(y_sum/N)
         values.append(val_sum)
-    return np.array( [ xs, ys ] ).T, values
+        print(val_sum)
+    if vis:
+        plt.hist(values, bins = 50)
+        plt.show()
+    return np.array( [ xs, ys ] ).T, np.array(values)
             
 def autocorrfz(atom_forces, bounds, zlo, zhi):
     plt.close()  
@@ -225,77 +229,103 @@ def autocorrfz(atom_forces, bounds, zlo, zhi):
     
     points              = np.array( [ [af.x for af in atom_forces], [af.y for af in atom_forces] ] ).T
     print( points.shape )
-    points, values      = get_avg_points_and_vals(atom_forces, bounds, 1.5)
+    points, values      = get_avg_points_and_vals(atom_forces, bounds, 1.5, vis=True)
     fz_av               = np.mean(values)
     fz_sum              = np.sum(values)
-    print("avg sum:" ,fz_av, fz_sum)
-    nx                  = 2 * int(bounds.xhi - bounds.xlo)
-    ny                  = 2 * int(bounds.yhi - bounds.ylo)
+    print("avg sum:" ,fz_av, fz_sum, np.std(values)  )
+    nx                  = 1 * int(bounds.xhi - bounds.xlo)
+    ny                  = 1 * int(bounds.yhi - bounds.ylo)
     xs                  = np.linspace(bounds.xlo - 0.5, bounds.xhi + 0.5, nx)
     ys                  = np.linspace(bounds.ylo - 0.5, bounds.yhi + 0.5, ny)
     grid_x, grid_y      = np.meshgrid(xs, ys)
     grid_fz             = griddata(points, values, (grid_x, grid_y), method='linear', fill_value = fz_av)
-    print()
-    print(np.isnan(grid_fz).sum(), np.isnan(values).sum())
+    #print()
+    #print(np.isnan(grid_fz).sum(), np.isnan(values).sum())
     force_fft           = np.fft.fft2(grid_fz)
-    pow_spec            = force_fft * np.conj(force_fft) / len(force_fft)
-    print(pow_spec.shape, grid_fz.shape)
-    pow_spec = np.fft.ifftshift(smooth_psd(np.fft.fftshift(pow_spec).real))
+    pow_spec            = force_fft * np.conj(force_fft) / force_fft.size
+    #pow_spec            = np.square(np.abs(force_fft)) / force_fft.size
+    #print(pow_spec.shape, grid_fz.shape)
+    pow_spec = np.fft.ifftshift(smooth_psd(np.fft.fftshift(pow_spec).real, visualize = False))
     force_autocorr      = np.fft.ifft2(pow_spec)
+    print( "force_autocorr[0,0]: ", force_autocorr[0,0] )
+    print("sum of squares of signal: %g" %np.mean(np.square(grid_fz)))
+    smooth_psd(np.fft.fftshift(force_autocorr).real, visualize = False)
     #pow_spec = smooth_psd(np.fft.fftshift(pow_spec).real)
     #print(force_fft)
     #print(pow_spec)
     #print(force_autocorr)
-    plt.imshow(grid_fz.T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
+    #plt.imshow(grid_fz.T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
     #plt.imshow(np.fft.fftshift(pow_spec.real).T)
-    #plt.imshow(np.abs(np.fft.ifftshift(pow_spec)).T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
-    #plt.imshow(np.log(np.abs(np.fft.ifftshift(force_autocorr))).T)
-    plt.plot(points[:,0], points[:,1], 'k.', ms=1)
-    plt.colorbar()
-    plt.show()
+    #plt.imshow(np.abs(np.fft.fftshift(pow_spec)).T, extent=(-np.pi, np.pi, -np.pi, np.pi))
+    #plt.imshow(np.abs(np.fft.ifftshift(force_autocorr.real)).T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
+    #plt.plot(points[:,0], points[:,1], 'k.', ms=1)
+    #plt.colorbar()
+    #plt.show()
 
 
-def smooth_psd(psd):
-    M,N = psd.shape
+
+def set_radial_average(data):
+    M,N = data.shape
     X   = M*N
     r_min, r_max = 0, int(( (M/2)**2 + (N/2)**2 )**(1/2))
     stop = math.log(r_max, 1.2)
     rs = np.logspace(-3, stop, 15, base = 1.2)
-    print(rs)
     dr = 1
+    rs = np.linspace(r_min, r_max, num=int((r_max - r_min)/dr), endpoint= True)
+    #print(rs)
+    
     quadruples = []
     for i in range(M):
         for j in range(N):
-            quadruples.append([i, j, psd[i,j], ((i-M/2)**2 + (j-N/2)**2)**(1/2)])
+            quadruples.append([i, j, data[i,j], ((i-M/2)**2 + (j-N/2)**2)**(1/2)])
     quadruples = sorted(quadruples, key = lambda vals: vals[3])
+    
+    vals = []
     ilo, ihi = 0, 10**10
     for i in range(1, len(rs)):
         r_next = rs[i]
         ihi = ilo
-        while ihi < M*N and quadruples[ihi][3] < r_next: ihi += 1
+        while ihi < M*N and quadruples[ihi][3] <= r_next: ihi += 1
         val = 0
         for i in range(ilo, ihi):
             val += quadruples[i][2]
         val /= (ihi-ilo)
         for i in range(ilo, ihi):
             quadruples[i][2] = val
-        print(r_next,val, ihi-ilo)
+        vals.append(val)
+        #print(r_next,val, ihi-ilo)
         ilo = ihi
     for i in range(X):
-        k,l = quadruples[i][0], quadruples[i][1]
-        psd[k, l] = quadruples[i][2]
-    psd = gaussian_filter(psd, sigma=2)
+        k,l        = quadruples[i][0], quadruples[i][1]
+        data[k, l] = quadruples[i][2]
+    return rs, vals
+
+def smooth_psd(psd, visualize = False):
+    M,N = psd.shape
+    rs, vals = set_radial_average(psd)
+    if visualize:
+        print("visualizing")
+        print(len(rs), len(vals))
+        print(vals)
+        #plt.close()
+        #rs = np.pi / ( (M/2)**2 + (N/2)**2 )**(1/2) * rs
+        plt.plot(rs[:-1], vals, 'bo')
+        #plt.yscale('log')
+        #plt.hist(vals, bins = rs)
+        plt.show()
+    psd = gaussian_filter(psd, sigma=1)
     return psd
         
-           
 
-fig, ax = plt.subplots()
-line1, = ax.plot([], [], 'bo', label = "Average Displacements")
-ax.set(xlim=(-40, 40), ylim=(0, 0.5))
-#ax.set_ylabel(r'$stats$', fontsize = 16)
-ax.set_xlabel(r'$z(\sigma)$', fontsize = 16)
-depth_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
-line2, = ax.plot([], [], 'ro', label = 'Number densities')
+if __name__=="__main__":
+    fig, ax = plt.subplots()
+    line1, = ax.plot([], [], 'bo', label = "Average Displacements")
+    ax.set(xlim=(-40, 40), ylim=(0, 0.5))
+    #ax.set_ylabel(r'$stats$', fontsize = 16)
+    ax.set_xlabel(r'$z(\sigma)$', fontsize = 16)
+    depth_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
+    line2, = ax.plot([], [], 'ro', label = 'Number densities')
+    
 def init():
     line1.set_data([],[])
     line2.set_data([],[])
