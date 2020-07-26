@@ -9,22 +9,13 @@ from thermoparser import heat_stats
 from boxcell import *
 from dumpparser import *
 from topology import *
+from indentation import *
 import gc
-epsilon = 0.000001
-dt      = 0.01    #integration time step used in simulations
-rc      = 1.5 + epsilon #cutoff distance for lennard Jones interactions
-glass = 1
+import settings
+
+
 tip_type = 2
-vis_data_path = '../visfiles/'
-out_data_path = '../outputfiles/'
-#idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
-
-#vis_data_path = '/home-3/kkurman1@jhu.edu/GlassExperiments/stiff/indentation/visfiles/'
-#out_data_path =  '/home-3/kkurman1@jhu.edu/GlassExperiments/stiff/indentation/outputfiles/'
-
-#vis_data_path = '/home/kkurman1/GlassExperiments/stiff/indentation/visfiles/'
-#out_data_path =  '/home/kkurman1/GlassExperiments/stiff/indentation//outputfiles/'
-
+glass    = 1
 
 class SimulationSettings:
     def __init__(self, force, poisson, G_shear_mod, R, sigma, d):
@@ -36,12 +27,15 @@ class SimulationSettings:
 
 
 class FileNames:
+    
     def __init__(self, M, N, T, r, cang, stiff, is_cone):
         if is_cone:
             self.make_conetip_names(M, N, T, r, cang, stiff)
         else:
             self.make_spheretip_names(M, N, T, r, stiff)
     def make_conetip_names(self, M, N, T, r, cang, stiff):
+        vis_data_path = settings.vis_data_path
+        out_data_path = settings.out_data_path
         name  = 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out'    %(M, N, T, r, cang) if stiff else 'visualize_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang)
         self.vis   = vis_data_path + name
         name  = 'pairids_stiff_M%d_N%d_T%g_r%d_cang%d.out'      %(M, N, T, r, cang) if stiff else 'pairids_M%d_N%d_T%g_r%d_cang%d.out'     %(M, N, T, r, cang)
@@ -54,6 +48,8 @@ class FileNames:
         #breaks = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  delta_r, step)
         #vis_changes = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
     def make_spheretip_names(self, M, N, T, r, stiff):
+        vis_data_path = settings.vis_data_path
+        out_data_path = settings.out_data_path
         name  = 'vis_sphere_stiff_M%d_N%d_T%g_r%d.out'    %(M, N, T, r) if stiff else 'vis_sphere_M%d_N%d_T%g_r%d.out'   %(M, N, T, r)
         self.vis   = vis_data_path + name
         name  = 'pairids_stiff_M%d_N%d_T%g_r%d.out'       %(M, N, T, r) if stiff else 'pairids_M%d_N%d_T%g_r%d.out'      %(M, N, T, r)
@@ -548,242 +544,12 @@ def get_displacements(type, frames, t1, t2):
 
 
 
-def interacting_particles(atom_forces):
-    interacting = []
-    for af in atom_forces:
-        if abs(af.fx) > epsilon or abs(af.fy) > epsilon or abs(af.fz) > epsilon:
-            interacting.append(af)
-    N = len(interacting)
-    points = np.zeros([N, 2])
-    for i in range(N):
-        points[i, 0], points[i, 1] = interacting[i].x, interacting[i].y
-    return interacting, points
 
 
-def shoelace_area(xs, ys):
-    '''Let 'vertices' be an array of N pairs (x,y), indexed from 0
-        Let 'area' = 0.0
-        for i = 0 to N-1, do
-          Let j = (i+1) mod N
-          Let area = area + vertices[i].x * vertices[j].y
-          Let area = area - vertices[i].y * vertices[j].x
-        end for'''
-    N = len(xs)
-    area = 0
-    for i in range(N):
-        j = (i+1) % N
-        area += (xs[i] * ys[j] - ys[i] * xs[j])
-    return abs(area)/2
-
-def orientation(atom_f1, atom_f2, atom_f3):
-    #http://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
-    val = (atom_f2.y - atom_f1.y) * (atom_f3.x - atom_f2.x) - (atom_f3.y - atom_f2.y) * (atom_f2.x - atom_f1.x)
-    if val == 0: #collinear
-        return 0
-    elif val > 0: #clockwise
-        return 1
-    else:
-        return 2 # counterlockwise
-def further(atom_f1, atom_f2, atom_f3):
-    d1 = (atom_f2.y - atom_f1.y) * (atom_f2.y - atom_f1.y) + (atom_f2.x - atom_f1.x) * (atom_f2.x - atom_f1.x)
-    d2 = (atom_f3.y - atom_f1.y) * (atom_f3.y - atom_f1.y) + (atom_f3.x - atom_f1.x) * (atom_f3.x - atom_f1.x)
-    if d2 > d1:
-        return 1 #return 1 if atom 2 is further than atom 1
-    return -1
-
-def jarvis(atom_forces, visualize = False):
-    leftmost = atom_forces[0]
-    for af in atom_forces:
-        if af.x < leftmost.x:
-            leftmost = af
-    hull = [leftmost]
-    max_r = 0
-    cur, cand = leftmost, None
-    xs, ys = [], []
-    remaining = [af for af in atom_forces if af not in hull]
-    while True:
-        cand = secrets.choice(atom_forces)
-        for af in atom_forces:
-            if af != cand:
-                if orientation(cur, cand, af) == 2:
-                    #print("here")
-                    cand = af
-                elif orientation(cur, cand, af) == 0 and further(cur, cand, af) == 1:
-                    cand = af
-        if cand == leftmost: break
-        cur = cand
-        max_r = max(max_r, cur.radius)
-        xs.append(cur.x)
-        ys.append(cur.y)
-        hull.append(cand)
-
-    area = shoelace_area(xs, ys)
-
-    if visualize:
-        xs, ys = [], []
-        for af in hull:
-            xs.append(af.x)
-            ys.append(af.y)
-        print("vis area %g" %(shoelace_area(xs, ys)))
-        xs.append(hull[0].x)
-        ys.append(hull[0].y)
-        plt.plot(xs, ys, color = 'r')
-        xs, ys = [], []
-        for af in atom_forces:
-            xs.append(af.x)
-            ys.append(af.y)
-        plt.scatter(xs, ys)
-        plt.show()
-    return hull, max_r, area
-#def get_edge_avg(atom_forces):
 
 
-def get_total_forces(atomic_forces):
-    fx, fy, fz = 0, 0, 0
-    for af in atomic_forces:
-        fx += af.fx
-        fy += af.fy
-        fz += af.fz
-    print(fx, fy, fz)
-    return fx, fy, fz
 
-
-def get_contact_depth(interacting_af):
-    zlo, zhi = 100000000000, -100000000000
-    for af in interacting_af:
-        zlo = min(zlo, af.z)
-        zhi = max(zhi, af.z)
-    return zhi - zlo
-
-def plot_stresszz_d(all_res, times, v, type):
-    areas = []
-    #times = []
-    ds  = []
-    strs_z = []
-    fzs = []
-    num_intrs = []
-    d_start = 0
-    t0 = 0
-    d0 = 0
-    del_z0 = 0
-    first_contact = True
-    ts = 0
-    avg_strs, cnt = 0, 0
-    fz_prev = 0
-    E_modulus = 0
-    print(len(all_res), len(times))
-    for i in range(len(all_res)):
-        t = times[i]
-        print("New timestep: %d" %t)
-        res = all_res[i]
-        interacting_af, points = interacting_particles(res[type])
-        count = len(interacting_af)
-        if count == 0:
-            continue
-        elif count < 3:
-            #continue
-            d = 1.12
-            if first_contact:
-                t0 = times[i]
-                d0 = t0 * v * dt
-                print("First contact happens at t0 : %d d0: %g" %(t0, d0))
-                first_contact = False
-           # continue
-            fx, fy, fz = get_total_forces(interacting_af)
-            area = count * math.pi * (d/2)**2
-            hc = get_contact_depth(interacting_af)
-        else:
-            if first_contact:
-                t0 = times[i]
-                d0 = t0 * v * dt
-                print("First contact happens at t0 : %d d0: %g" %(t0, d0))
-                first_contact = False
-            #if first_contact:
-            #    t0 = t-1
-            #    first_contact = False
-            #_, _, all_fz = get_total_forces(res[type])
-            fx, fy, fz = get_total_forces(interacting_af)
-            hull = ConvexHull(points)
-            #plt.plot(points[hull.vertices,0], points[hull.vertices,1], 'r--', lw=2)
-            #plt.show()
-            print("scipy area: %g" %hull.area)
-            area = shoelace_area(points[hull.vertices,0], points[hull.vertices,1])
-            hc = get_contact_depth(interacting_af)
-            #hull, max_r, area = jarvis(interacting_af, visualize=True)
-            #area = math.pi * max_r**2
-        
-
-        if fz_prev == 0: fz_prev = fz
-        if fz_prev != fz:
-            del_fz    = fz - fz_prev
-            del_h     = v * dt
-            stiffness = del_fz/del_h
-            fz_prev   = fz
-            E_modulus = (stiffness * (math.pi**(1/2))) / (2 * area**(1/2))
-        
-        del_z = t * v * dt - d0
-        if del_z < del_z0:
-            continue
-        else:
-            del_z -= del_z0
-        str_z = fz / area
-        #if str_z > 3:
-        #    continue
-        areas.append(area)
-        fzs.append(fz)
-        num_intrs.append(count)
-        #times.append(t)
-        ds.append(del_z)
-        strs_z.append(str_z)
-        if del_z > 8 and del_z < 12:
-            avg_strs += str_z
-            cnt += 1
-        print("Displacement d: %g Contact Depth: %g Num of particles: %d Total Fz: %g Area: %g StressZ: %g E: %g" %(del_z,hc,count,fz, area, str_z, E_modulus))
-    fz_polcoeffs = np.polyfit(ds, fzs, 2)
-    az_polcoeffs = np.polyfit(ds, areas, 2)
-    print(fz_polcoeffs)
-    print(az_polcoeffs)
-    polfz = np.poly1d(fz_polcoeffs)
-    fig, ax = plt.subplots(2, 2)
-    E_moduli = [2 * fzs[i] * math.tan(math.radians(45))/ areas[i] for i in range(len(ds)) ]
-    ax[0][0].plot(ds, num_intrs, 'g')
-    ax[0][0].set_ylabel("N", rotation = 0)
-    ax[0][1].plot(ds, areas, 'r')
-    ax[0][1].set_ylabel("A", rotation = 0)
-    ax[1][0].plot(ds, fzs, 'k')
-    ax[1][0].set_ylabel("$F_z$", rotation = 0)
-    ax[1][1].plot(ds, strs_z, 'b')
-    ax[1][1].set_ylabel("$\sigma_{zz}$", rotation = 0)
-    for i in range(2):
-        for j in range(2):
-            ax[i][j].set_xlabel("$d$")
-    fig.suptitle("Shift d = %g" %d0)
     
-    plt.show()
-    fig, ax = plt.subplots(1, 1)
-    plt.plot(ds, strs_z, 'b')
-    plt.ylabel("$\sigma_{zz}$", rotation = 0)
-    plt.xlabel("$d$")
-    plt.legend()
-    plt.plot()
-    plt.show()
-    print("Avg stress: %g" %(avg_strs/cnt))
-    
-    '''
-    plt.plot(ds, fzs, label = "F_z vs d")
-    ds2 = [d**2 for d in ds]
-    plt.plot(ds2, fzs)
-    slope, intercept, r_value, p_value, std_err = stats.linregress(ds2,fzs)
-    print("slope: %g intercept: %g r_val: %g p_val: %g std_err: %g" %(slope, intercept, r_value, p_value, std_err))
-    plt.ylabel('$F_z$')
-    plt.xlabel('$d^2$')
-    plt.plot(ds, polfz(ds))
-    plt.legend()
-    plt.show()
-    plt.plot(ds, strs_z)
-    plt.show()
-    print(E_moduli)
-    '''
 
 
 def plot_changes(ds, ccfrac, cefrac, contactd, delta_r):
@@ -1137,6 +903,7 @@ def vis_hardness(css):
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
     filename = filenames.vis
+    filename = "../visfiles/filt_vis_sphere_stiff_M2000_N256_T0.1_r25.out"
     filename = "../visfiles/vis_sphere_kovac_M2000_N256_T0.2_r25.out"
     all_res, bounds, times = get_interactions(filename, t_init, t_final, types, interacting = True)
     plot_stresszz_d(all_res, times, vz, tip_type)
@@ -1195,7 +962,7 @@ def main():
     parser.add_argument('--T',       type=float, default = 0.0001, help = 'Temperature of the system')
     parser.add_argument('--vz',      type=float, default = 0.0001, help = 'Indenting tip velocity')
     parser.add_argument('--dt',      type=float, default = 0.01,   help = 'Integration time step of the simluation')
-    parser.add_argument('--r',       type=float, default = 10,     help = 'Radius of the spherical tip')
+    parser.add_argument('--r',       type=float, default = 25,     help = 'Radius of the spherical tip')
     parser.add_argument('--cang',    type=float, default = 45,     help = 'Angle the cone surface makes with the horizontal plane')
     parser.add_argument('--delta_r', type=float, default = 0.3,    help = 'Threshold change in radial distance to be classified as a plastic event.')
     parser.add_argument('--stiff',     action = 'store_true', default = False, help = 'True if polymer stiff (i.e. there is an angle style defined)')
@@ -1209,12 +976,13 @@ def main():
     args.stiff = is_stiff
     args.r    = 0
     #args.conetip = True
+    args.T = 0.1
     args.cang = 0
-    args.vz = 1 # 0.001
+    args.vz  =  0.0001
     global css, filenames
     print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
-    css.set_analysisvals(30, 31, 1)
+    css.set_analysisvals(1, 489, 1)
     filenames = FileNames(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     print(args.stiff, args.M)
     #plot_nforce_vs_cont_area()
@@ -1225,8 +993,8 @@ def main():
     #vis_thickness(css)
     del_z = 1.0
     #visualize_fluctuations(css, filenames, del_z)
-    #vis_hardness(css)
-    vis_layers(css)
+    vis_hardness(css)
+    #vis_layers(css)
     return
     if args.hardness:
         vis_hardness(css)

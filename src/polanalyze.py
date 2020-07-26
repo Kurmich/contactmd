@@ -224,6 +224,30 @@ class PolymerMelt:
         c_inf = (1 + exp_cosine) / (1 - exp_cosine)
         print("Florys characteristic ratio: %g" %c_inf)
         return c_inf
+    def bond_isotropy(self):
+        count  = 0
+        cos_sq_x  = 0
+        cos_sq_y  = 0
+        cos_sq_z  = 0
+        for polymer in self.polymers:
+            for mi in range(len(polymer.monomers)-1):
+                mon_cur       = polymer.monomers[mi]
+                mon_next      = polymer.monomers[mi+1]
+                dx            = self.get_displ_pbr(mon_next.x, mon_cur.x, self.Lx)
+                dy            = self.get_displ_pbr(mon_next.y, mon_cur.y, self.Ly)
+                dz            = self.get_displ_pbr(mon_next.z, mon_cur.z, self.Lz)
+                bond_len_sq     = (dx**2 + dy**2 + dz**2)
+                cos_sq_x         += (dx**2) / bond_len_sq
+                cos_sq_y         += (dy**2) / bond_len_sq
+                cos_sq_z         += (dz**2) / bond_len_sq
+            count   += (len(polymer.monomers)-1)
+        cos_sq_x  /= count
+        cos_sq_y  /= count
+        cos_sq_z  /= count
+        fx   = (3*cos_sq_x - 1)/2
+        fy   = (3*cos_sq_y - 1)/2
+        fz   = (3*cos_sq_z - 1)/2
+        print("f_x: %g f_y: %g f_z: %g" %(fx, fy, fz))
                 
 
 class Polymer:
@@ -451,6 +475,7 @@ def check_equilibration(M, N):
     pol_melt = PolymerMelt(polymers, headers, sections)
     pol_melt.mountain_mol_ids()
     pol_melt.get_Florys_ratio()
+    pol_melt.bond_isotropy()
     pol_melt.plot_mean_square('r', 'Equilibrated')
     plt.suptitle('Mean Square Internal Distances M: %d N: %d T: %g' %(M, N, 1), fontsize = 20)
     plt.plot(xs,ys, 'g', label='Target function')
@@ -458,17 +483,28 @@ def check_equilibration(M, N):
     plt.xlabel(r'$n$', fontsize = 16)
     plt.legend()
     plt.show()
+    
+def check_isotropy(M, N, T):
+    xs, ys = read_goal("goal.txt")
+    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g_nve_smooth" %(M,N,T)
+    #filename = "../lammpsinput/data_eq_stiff_M%d_N%d" %(M,N)
+    graph, headers, sections = get_graph(filename, M, N)
+    polymers = graph.group_polymers()
+    pol_melt = PolymerMelt(polymers, headers, sections)
+    pol_melt.mountain_mol_ids()
+    pol_melt.bond_isotropy()
 
 def main():
     xs, ys = read_goal("goal.txt")
     M = 2000
     N = 256
-    T = 0.0001
+    T = 0.2
+    check_isotropy(M, N, T)
     #check_equilibration(M, N)
     #vis_layers(M, N, T)
     #add_angles(M, N)
     #check_equilibration(M, N)
-    clean_quenched_file(M, N, T)
+    #clean_quenched_file(M, N, T)
 #    return
     '''
    

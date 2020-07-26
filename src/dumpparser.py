@@ -61,13 +61,14 @@ def get_interactions(filename, t_start, t_end, types, interacting = False, sortk
                     if skip:
                         continue
                     line = line.strip()
+                    #print(line)
                     '''Return a list of the words in the string, using sep as the delimiter string. 
                     If maxsplit is given, at most maxsplit splits are done (thus, the list will have at most maxsplit+1 elements). 
                     If maxsplit is not specified or -1, then there is no limit on the number of splits (all possible splits are made).'''
                     words = line.split(' ', 9)
                     if len(words) > 9:
                         a_id, mol, atype, x, y, z, fx, fy, fz, arributes  = words
-                    else:
+                    elif len(words) == 9:
                         a_id, mol, atype, x, y, z, fx, fy, fz  = words
                     a_id, mol, atype, x, y, z, fx, fy, fz = int(a_id), int(mol), int(atype), float(x), float(y), float(z), float(fx), float(fy), float(fz)
                     if atype not in types: continue
