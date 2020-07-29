@@ -978,11 +978,11 @@ def main():
     #args.conetip = True
     args.T = 0.1
     args.cang = 0
-    args.vz  =  0.0001
+    args.vz  =  1#0.0001
     global css, filenames
     print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
-    css.set_analysisvals(1, 489, 1)
+    css.set_analysisvals(1, 1824, 1)
     filenames = FileNames(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     print(args.stiff, args.M)
     #plot_nforce_vs_cont_area()
