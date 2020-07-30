@@ -21,9 +21,16 @@ class Spectrum:
         self.qs          = qs #longest wave vector  (shortest wavelength)
         self.H           = H  #hurst exponent
         self.C           = C #/ qL**(2*(H+1))
-        self.description = "qL: %g qr: %g qs: %g H: %g C: %g" %(qL, qr, qs, H, self.C)
+        self.h_rms       = self.get_analytic_roughness()
+        self.description = "qL: %g qr: %g qs: %g H: %g C: %g Analytic h_rms: %g" %(qL, qr, qs, H, self.C, self.h_rms)
     def get_info(self):
         return self.description
+    def get_analytic_roughness(self):
+        integral1 = (self.qr - self.qL) * 2 * np.pi
+        num       = 2*self.H + 1
+        integral2 = (self.qr * 2 * np.pi)**(2*(self.H + 1)) * ((self.qr * 2*np.pi)**(-num) - (self.qs * 2*np.pi)**(-num)) /num 
+        print(integral1, integral2)
+        return np.sqrt( self.C * (integral1 + integral2) )
         
 epsilon = 10**(-10)       
 class RoughSurface:
@@ -34,29 +41,28 @@ class RoughSurface:
         self.__make_psd()
         
     def __make_psd(self):
-        self.rms_slope = 0
         qL_sq  = self.spectrum.qL**2
-        qs_sq = self.spectrum.qs**2
-        qr_sq = self.spectrum.qr**2
+        qs_sq  = self.spectrum.qs**2
+        qr_sq  = self.spectrum.qr**2
         freq_x   = np.fft.fftfreq(self.Nx, 1/self.Nx) #* 2 * np.pi / self.Lx
         freq_y   = np.fft.fftfreq(self.Ny, 1/self.Ny) #* 2 * np.pi / self.Ly
         xx, yy = np.meshgrid(freq_x, freq_y, indexing='ij')
         
         q_sq_mat   = xx**2 + yy**2
         self.psd = np.zeros((self.Nx, self.Ny))
+        rms_slope_sq = 0
         for i in range(self.Nx):
             for j in range(self.Ny):
                 q_sq = q_sq_mat[i, j]
                 if q_sq < qL_sq  or  q_sq > qs_sq:
                     continue
                 if q_sq >= qL_sq and q_sq < qr_sq:
-                    print("here")
                     self.psd[i, j] = self.spectrum.C
                 else:
                     self.psd[i, j] = self.spectrum.C / (q_sq/qr_sq)**(self.spectrum.H + 1)
-                self.rms_slope += q_sq * self.psd[i, j] * (4 * np.pi**2)
-        #self.rms_slope /= ( self.Nx * self.Ny )
-        self.roughness = np.sum(self.psd)#/( self.Nx * self.Ny )
+                rms_slope_sq +=  (2 * np.pi)**2 * q_sq * self.psd[i, j]
+        self.rms_slope  = np.sqrt(rms_slope_sq)
+        self.roughness  = np.sum(self.psd)#/( self.Nx * self.Ny )
         print("rms slope: %g rms roughness %g" %(np.sqrt(self.rms_slope), np.sqrt(self.roughness)) )
         print("psd max", np.max(self.psd))
         self.q_sq_mat = q_sq_mat
@@ -65,12 +71,13 @@ class RoughSurface:
         gauss_mat = self.get_rand_matrix(distribution = 'gaussian')
         H =  np.fft.fft2(gauss_mat) * np.sqrt(self.psd)
         self.heights =  np.fft.ifft2(H) *  (self.Nx * self.Ny)**(1/2) # (self.Nx**2 + self.Ny**2)**(1/4) 
+        #self.heights *= (0.1/ self.rms_slope)
         print("std: ", np.std(self.heights) )
     
     def random_phase_surface(self):
         phases = self.get_rand_matrix()
         H = np.exp(phases*1j) * np.sqrt(self.psd)
-        self.heights = (self.Nx**2 + self.Ny**2)**(1/2) * np.fft.ifft2(H)
+        self.heights = (self.Nx * self.Ny) * np.fft.ifft2(H)
         
     def get_rand_matrix(self, distribution = 'uniform', visual = False):
         M, N = self.psd.shape
@@ -134,6 +141,23 @@ class RoughSurface:
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
         
+        plt.show()
+        
+    def plot_height_distribution(self):
+        Z = self.heights.real.flatten()
+        '''hist, bin_edges = np.histogram(Z, bins = 120)
+        bincenters = 0.5*(bin_edges[1:]+bin_edges[:-1])
+        plt.close()
+        plt.plot(bincenters, hist, '-', marker = 'o', fillstyle = 'none', markerfacecolor = 'r')
+        plt.xlabel(r'$z(\sigma)$')
+        plt.title("Number of atoms vs z.")'''
+        plt.hist(Z, bins=50, alpha=0.5,
+         histtype='step', linewidth=2,
+         edgecolor='deepskyblue')
+        plt.xlabel(r'$h$')
+        plt.ylabel(r'$Count$')
+        #ax.hist(z_vals, bins='auto')
+        plt.legend()
         plt.show()
     def test_rms_slope(self):
         rms_slope_sq = 0
@@ -230,9 +254,10 @@ def main():
     args.qs = 16#2 * np.pi
     args.H = 0.8
     spectrum   = Spectrum(args.qL, args.qr, args.qs, args.H, args.C)
+    print(spectrum.get_info() )
     d = 2**(1/6)
     dx, dy = d/2, d/2
-    args.Lx, args.Ly = 150, 150
+    args.Lx, args.Ly = 700, 700
     
     args.Nx, args.Ny = int(args.Lx/dx), int(args.Ly/dy)
     N_vec = (args.Nx, args.Ny)
@@ -243,6 +268,7 @@ def main():
     r.vis_surface()
     r.vis_psd()
     #r.test_rms_slope()
+    #r.plot_height_distribution()
     r.write_lammps_file("../lammpsinput/rough_Lx%d_Ly%d.data" %(args.Lx, args.Ly))
 
 if __name__=="__main__":

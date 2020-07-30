@@ -122,6 +122,9 @@ def get_dxdydz(a_next, a_cur, bounds):
     if bounds.pbcZ:  dz = get_displ_pbr(a_next.z, a_cur.z, bounds.Lz)
     return dx, dy, dz
 
+def compute_distance(a_next, a_cur, bounds):
+    dx, dy, dz = get_dxdydz(a_next, a_cur, bounds)
+    return np.sqrt( dx**2 + dy**2 + dz**2 )
 
 def create_neighbor_lists(atom_forces, bounds, rc):
     cells = construct_cell_list(atom_forces, bounds, rc)

@@ -16,6 +16,8 @@ import settings
 
 tip_type = 2
 glass    = 1
+rc       = settings.rc
+dt       = settings.dt
 
 class SimulationSettings:
     def __init__(self, force, poisson, G_shear_mod, R, sigma, d):
@@ -184,95 +186,69 @@ def get_stats(atom_forces, atom_forces_p, af, af_p, bounds, bounds_p, delta_r):
     '''bounds - current bounds
        bounds_p - previous bounds, here _p stands for previous dump
     '''
-    lj_change_comp = []
-    lj_change_ext = []
-    prev_ids = {}
-    cur_ids = {}
-    nbr_list_p = af_p.neighbors
-    nbr_list   = af.neighbors
+    r_bond          = 1.2
+    compressed      = []
+    extended        = []
+    broken          = []
+    formed          = []
+    prev_ids        = {}
+    cur_ids         = {}
+    nbr_list_p      = af_p.neighbors
+    nbr_list        = af.neighbors
     for i in range(len(nbr_list_p)): prev_ids[nbr_list_p[i].id] = i 
-    for i in range(len(nbr_list)):   cur_ids[nbr_list[i].id] = i 
-    for nbr_prev in nbr_list_p:
-        #for each neighbor in neighbor list of previous timestep
-        nbr_id = nbr_prev.id
-        #af_nbr_p = nbr_list_p[prev_ids[nbr_id]]
-        af_nbr_p = nbr_prev
+    for i in range(len(nbr_list)):   cur_ids[nbr_list[i].id]    = i
+    
+    #for each neighbor in a neighbor list of the previous timestep
+    for af_nbr_p in af_p.neighbors:
+        r_prev = compute_distance(af_p, af_nbr_p, bounds_p)
+        #if the nbr_prev is still a neighbor during current timestep
+        nbr_id = af_nbr_p.id
         if nbr_id in cur_ids:
-            af_nbr   = nbr_list[cur_ids[nbr_id]] #if the nbr_prev is still a neighbor
-        else:
-            af_nbr = atom_forces[nbr_id - 1]     #if it isn't neighbor anymore
-        '''ASSUMING NON-PBC in z direction'''
-        dx, dy, dz = get_dxdydz(af_p, af_nbr_p, bounds_p)
-        r_prev = math.sqrt( dx**2 + dy**2 + dz**2 )
-        
-        dx, dy, dz = get_dxdydz(af, af_nbr, bounds)
-        r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
-        
-        #assert af in af_nbr.neighbors
-        #assert af_p in af_nbr_p.neighbors
+            af_nbr   = nbr_list[cur_ids[nbr_id]]
+        #if it isn't neighbor anymore
+        else:  
+            af_nbr = atom_forces[nbr_id - 1]
+            #if previously pair was bonded
+            if r_prev < r_bond:                  
+                broken.append((af_p.id, af_nbr_p.id))
+        #check whether the separation between atoms increased or decreased
         assert af_nbr_p.id == af_nbr.id
-        #assert r_prev < r_cutoff and r_cur < r_cutoff, "Interaction distance is > rc = %g r_prev: %g r_cur: %g" %(r_cutoff, r_prev, r_cur)
+        r_cur  = compute_distance(af, af_nbr, bounds)
         flag = maxchange_criteria(r_prev, r_cur, delta_r)
         if flag == 1:
             af.ext_ids.add(af_nbr.id)
             af_nbr.ext_ids.add(af.id)
-            lj_change_ext.append((af.id, af_nbr.id))
+            extended.append((af.id, af_nbr.id))
         elif flag == -1:
-            lj_change_comp.append((af.id, af_nbr.id))
+            compressed.append((af.id, af_nbr.id))
             af.comp_ids.add(af_nbr.id)
             af_nbr.comp_ids.add(af.id)
             
-    rbond = 1.2
     
-    broken = []
-    for nbr_prev in nbr_list_p:
-        if nbr_prev.id not in cur_ids:
-            dx, dy, dz = get_dxdydz(af_p, nbr_prev, bounds_p)
-            r_prev = math.sqrt( dx**2 + dy**2 + dz**2)
-            if r_prev < rbond:
-                broken.append((af_p.id, nbr_prev.id))
     
-    formed = []
-    for nbr_cur in nbr_list:
-        if nbr_cur.id not in prev_ids:
+    
+    for af_nbr in af.neighbors:
+        if af_nbr.id not in prev_ids:
+            #check if new LJ bond was formed
+            r_cur  = compute_distance(af, af_nbr, bounds) 
+            if r_cur < r_bond:
+                formed.append((af, af_nbr))
             
-            dx, dy, dz = get_dxdydz(af, nbr_cur, bounds)
-            r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
+            #get separation between atoms in previous time step
+            af_nbr_p = atom_forces_p[af_nbr.id - 1] 
+            assert af_nbr_p.id == af_nbr.id
+            r_prev = compute_distance(af_p, af_nbr_p, bounds_p)
             
-            if r_cur < rbond:
-                formed.append((af, nbr_cur))
-            nbr_id = nbr_cur.id
-            af_nbr_p = atom_forces_p[nbr_id - 1] 
-            assert af_nbr_p.id == nbr_cur.id
-            af_nbr = nbr_cur
-            
-            dx, dy, dz = get_dxdydz(af_p, af_nbr_p, bounds_p)
-            r_prev = math.sqrt( dx**2 + dy**2 + dz**2 )
-            
-            dx, dy, dz = get_dxdydz(af, af_nbr, bounds)
-            r_cur  = math.sqrt( dx**2 + dy**2 + dz**2 )
+            #check if separation decrease was significant
             flag = maxchange_criteria(r_prev, r_cur, delta_r)
             if flag == 1: 
-                print("Error bond can't be extended")
-                lj_change_ext.append((af.id, af_nbr.id))
+                raise ValueError("Lennard-Jones bond can not extend. Bond lengths: r_prev = %g, r_cur = %g" %(r_prev, r_cur))
             elif flag == -1:
-                lj_change_comp.append((af.id, af_nbr.id))
+                compressed.append((af.id, af_nbr.id))
                 af.comp_ids.add(af_nbr.id)
                 af_nbr.comp_ids.add(af.id)
         
-    return lj_change_comp, lj_change_ext, broken, formed
-            
-
-#def get_stat(af_p, nbr_list_p, af, nbr_list, bounds_p, bounds, percent):
-           
-def is_neighbor(a_id, neighbor_list):
-    for nbr in neighbor_list:
-        if a_id == nbr.id:
-            return True
-    return False
-
-def get_separation(af1, af2):
-    return math.sqrt((af1.x - af2.x)**2 + (af1.y - af2.y)**2 + (af1.z - af2.z)**2)
+    return compressed, extended, broken, formed
 
 
 def get_cum_ljbond_stats(all_res, all_bounds, atom_forces_ref, bounds_ref, atype, delta_r):
@@ -319,7 +295,7 @@ def get_cum_ljbond_stats(all_res, all_bounds, atom_forces_ref, bounds_ref, atype
         comp_back, ext_back = reverse_changes(atom_forces_p, atom_forces)
         comp_then_ext.append(ext_back/2)
         ext_then_comp.append(comp_back/2)
-        print("i: %d change comp: %g change ext: %d broken: %d formed: %d c-e: %d e-c: %d" %(i, lj_change_count_c, lj_change_count_e, broken_count, formed_count, ext_back, comp_back), flush = True)
+        print("i: %d compressed: %g extended: %d broken: %d formed: %d c-e: %d e-c: %d" %(i, lj_change_count_c, lj_change_count_e, broken_count, formed_count, ext_back, comp_back), flush = True)
     return changes_comp, changes_ext, breaks, formations, comp_then_ext, ext_then_comp
 
 def add_neighbors(all_pair_ids, all_res, atype):
@@ -526,27 +502,7 @@ def plot_color_map(data):
     plt.xlabel("log(t/tau)")
     plt.show()
 
-
-def get_displacements(type, frames, t1, t2):
-    frame1 = select_from_frame(frames[ t1 - 1 ], type)
-    frame2 = select_from_frame(frames[ t2 - 1 ], type)
-    delta = frame2[:, 2:5] - frame1[:, 2:5]
-    nRows, nCols = delta.shape
-    #x = np.arange(0, nRows, 1)
-    #xx, yy = np.meshgrid(x, x, sparse=True)
-    #print(xx)
-    delta_d = np.sqrt( np.sum(np.square(delta) , axis = 1))
-    cmap = frame1[:, 2:5]
-    cmap[:, 2] = delta_d
-    print(delta_d.shape, frame1.shape)
-    return cmap
     
-
-
-
-
-
-
 
 
     
@@ -641,7 +597,7 @@ def visualize_lj_bond_stats(css, delta_r):
     remove_file(changes_filename)
     remove_file(breaks_filename)
     remove_file(vischanges_filename)
-    rc = 1.5 + 0.001
+   # rc = 1.5 + 0.001
     idx = 0 #CHANGE THIS
     contactd = 3
     j = 0
@@ -695,10 +651,7 @@ def visualize_lj_bond_stats(css, delta_r):
     with open("rate_T%g_deld%g.txt" %(css.T, deld), 'w') as f:
         for item in rate:
             f.write("%s\n" %item)
-    
-    #if css.T < 0.3:
-    #    scale =  0.8214 * 0.00000416
-    #    heat_stats(filename_heat, scale, step)
+
     plt.savefig(changes_filename)
     plt.close()
     plot_breaks(ds, bfrac, ffrac, contactd)
@@ -709,15 +662,10 @@ def visualize_lj_bond_stats(css, delta_r):
 
 
 def visualize_cum_lj_bond_stats(css, delta_r):
-    #M, N = 2000, 256
-    #T = 0.0001
-    #r = 10
-    #cang = 45
     types = [glass]
     atype = glass
     #rc = 1.5
     vz = css.vz
-    d0 = 0 #2.2 
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
     step = 1 #step for calculations
@@ -727,22 +675,21 @@ def visualize_cum_lj_bond_stats(css, delta_r):
     print("data count", data_count)
     data = np.zeros( (data_count, 8) )
     ds = []
-    contactd = 100000000000
     filename             = filenames.vis
     vischanges_filename  = "cum_visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
     #remove files if they already exist
     remove_file(vischanges_filename)
-    rc = 1.5 + 0.001
+    #rc = 1.5 + 0.001
     j = 0
     first_res, first_bounds, _ = get_interactions(filename, t_init, t_init, types, interacting = False)
-    pair_counts = construct_neighbors(first_res, first_bounds, atype, rc)
-    atom_forces_ref       = first_res[0][atype]
-    bounds_ref            = first_bounds[0]
+    pair_counts                = construct_neighbors(first_res, first_bounds, atype, rc)
+    atom_forces_ref            = first_res[0][atype]
+    bounds_ref                 = first_bounds[0]
     print("Reference atomic forces computed.")
     for t_start in range(t_init, t_final, t_step):
-        t_end = t_start + t_step - 1
+        t_end                      = t_start + t_step - 1
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
-        pair_counts = construct_neighbors(all_res, all_bounds, atype, rc)
+        pair_counts                = construct_neighbors(all_res, all_bounds, atype, rc)
         print("Neighbors are constructed.", flush = True)
         changes_comp, changes_ext, breaks, formations, comp_then_ext, ext_then_comp = get_cum_ljbond_stats(all_res, all_bounds, atom_forces_ref, bounds_ref, atype, delta_r)
         for i in range(len(changes_comp)):
@@ -761,7 +708,7 @@ def visualize_cum_lj_bond_stats(css, delta_r):
         cefrac.extend( [changes_ext[i]/pair_counts[i]     for i in range(len(changes_ext))] )
         bfrac.extend(  [breaks[i]/pair_counts[i]          for i in range(len(breaks))] )
         ffrac.extend(  [formations[i]/pair_counts[i]      for i in range(len(formations))] )
-        ds.extend(     [vz*dt*times[i] - d0               for i in range(len(times))] )
+        ds.extend(     [vz*dt*times[i]                    for i in range(len(times))] )
         comp_ext_frac.extend([comp_then_ext[i]/pair_counts[i]    for i in range(len(comp_then_ext))])
         ext_comp_frac.extend([ext_then_comp[i]/pair_counts[i]    for i in range(len(ext_then_comp))])
         append_vis_file(all_res, all_bounds, times, vischanges_filename, step)
@@ -780,7 +727,7 @@ def visualize_cum_lj_bond_stats(css, delta_r):
 def get_average_stretches(atomic_forces, M, N, bounds):
     '''Assumption atom_forces are sorted by id 
     and M chains are of length N first polymer (chain) is at idx location 0:N-1'''
-    rc = 1.5
+    #rc = 1.5
     rcsq = rc**2
     broken_count  = 0
     Rtot = 0.0
@@ -971,18 +918,18 @@ def main():
     parser.add_argument('--stretches', action = 'store_true', default = False, help = 'True if analysis of end-end polymer lengths is LJ bond lengths is needed')
     parser.add_argument('--conetip',   action = 'store_true', default = False, help = 'True if tip is of cone shape')
     args = parser.parse_args()
-    Temp = 0.0001
+    #Temp = 0.0001
     is_stiff = True
     args.stiff = is_stiff
-    args.r    = 0
+    #args.r    = 25
     #args.conetip = True
-    args.T = 0.1
-    args.cang = 0
-    args.vz  =  1#0.0001
+    #args.T = 0.1
+    #args.cang = 0
+    #args.vz  =  0.0001
     global css, filenames
     print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
-    css.set_analysisvals(1, 1824, 1)
+    css.set_analysisvals(2, 4, 1)
     filenames = FileNames(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
     print(args.stiff, args.M)
     #plot_nforce_vs_cont_area()
@@ -991,11 +938,13 @@ def main():
     #oligomer_type = 3
     #sargs.hardness = True
     #vis_thickness(css)
-    del_z = 1.0
+    #del_z = 1.0
     #visualize_fluctuations(css, filenames, del_z)
-    vis_hardness(css)
+    #delta_r = 0.5
+    #visualize_cum_lj_bond_stats(css, delta_r)
+    #vis_hardness(css)
     #vis_layers(css)
-    return
+    #return
     if args.hardness:
         vis_hardness(css)
     if args.bondstats:

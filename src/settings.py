@@ -7,7 +7,7 @@ Created on Sat Jul 25 17:36:31 2020
 a = 5
 epsilon  = 0.000001
 dt       = 0.01    #integration time step used in simulations
-rc       = 1.5 + epsilon #cutoff distance for lennard Jones interactions
+rc       = 1.89 + epsilon #cutoff distance for lennard Jones interactions
 vis_data_path = '../visfiles/'
 out_data_path = '../outputfiles/'
 #idx_id, idx_mol, idx_type, idx_x, idx_y, idx_z, idx_fx, idx_fy, idx_fz, _ = line.split(' ')
