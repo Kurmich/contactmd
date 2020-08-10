@@ -65,14 +65,13 @@ class FileNames:
         #vis_changes = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
 
 class ConesimSettings:
-    def __init__(self, M, N, T, r, cang, vz, dt):
+    def __init__(self, M, N, T, r, cang, vz):
         self.M    = M       #number of chains
         self.N    = N       #number of monomers per chain
         self.T    = T       #Temperature of the system
         self.r    = r       #radius of the spherical tip of the cone
         self.cang = cang    #angle that cone makes with substrate plane
         self.vz   = vz      #velocity of the cone
-        self.dt   = dt      #timestep of the simulation
         print("Simulation settings used for analysis")
         print("M : %d, N: %d, T: %g, r: %g, cang: %g, vz: %g, dt: %g" %(M, N, T, r, cang, vz, dt), flush = True)
     def set_analysisvals(self, t_init, t_final, t_step):
@@ -567,7 +566,7 @@ def save_bond_change_stats(data, filename):
             text = text.strip()
             f.write(text)
             f.write("\n")
-def visualize_lj_bond_stats(css, delta_r):
+def visualize_lj_bond_stats(css, delta_r, dz):
     #M, N = 2000, 256
     #T = 0.0001
     #r = 10
@@ -661,7 +660,7 @@ def visualize_lj_bond_stats(css, delta_r):
 
 
 
-def visualize_cum_lj_bond_stats(css, delta_r):
+def visualize_cum_lj_bond_stats(css, delta_r, dz):
     types = [glass]
     atype = glass
     #rc = 1.5
@@ -677,7 +676,8 @@ def visualize_cum_lj_bond_stats(css, delta_r):
     data = np.zeros( (data_count, 8) )
     ds = []
     filename             = filenames.vis
-    vischanges_filename  = "cum_visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
+    vischanges_filename  = "cum_visualizechanges_M%d_N%d_T%g_r%d_delr%g_dz%d.out" %(css.M, css.N, css.T, css.r, delta_r, dz)
+    print(vischanges_filename)
     #remove files if they already exist
     remove_file(vischanges_filename)
     #rc = 1.5 + 0.001
@@ -716,7 +716,7 @@ def visualize_cum_lj_bond_stats(css, delta_r):
         print("t start: %d\n" %t_start, flush=True)
         gc.collect() #
     print(len(ds), len(ffrac))
-    statsfile = 'cum_stats_stiff_M%d_N%d_T%g_r%d_p%g.out' %(css.M, css.N, css.T, css.r, delta_r)
+    statsfile = 'cum_stats_stiff_M%d_N%d_T%g_r%d_p%g_dz%d.out' %(css.M, css.N, css.T, css.r, delta_r, dz)
     save_bond_change_stats(data, statsfile)
     #Write rate of rearragements to a file
     deld = ds[step] - ds[0]
@@ -931,7 +931,7 @@ def main():
     global css, filenames
     print("Number of chains: %d Monomers per chain: %d Temperature: %g Tip Radius: %g" %(args.M, args.N, args.T, args.r))
     print(args.cang, args.stiff, args.conetip)
-    css = ConesimSettings(args.M, args.N, args.T, args.r,  args.cang, args.vz, args.dt)
+    css = ConesimSettings(args.M, args.N, args.T, args.r,  args.cang, args.vz)
     css.set_analysisvals(2, 200, 5)
     filenames = FileNames(args.M, args.N, args.T, args.r, args.dz, args.cang, args.stiff, args.conetip)
     print(filenames.vis, flush = True )
@@ -951,8 +951,8 @@ def main():
     if args.hardness:
         vis_hardness(css)
     if args.bondstats:
-        visualize_cum_lj_bond_stats(css, args.delta_r)
-        #visualize_lj_bond_stats(css, args.delta_r)
+        visualize_cum_lj_bond_stats(css, args.delta_r, args.dz)
+        #visualize_lj_bond_stats(css, args.delta_r, args.dz)
     if args.stretches:
         visualize_stretches(css)
     return
