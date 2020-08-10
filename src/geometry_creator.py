@@ -461,7 +461,7 @@ def create_spherical_tip(Dx, Dy, Dz, d, units, radius, atom_style):
 
 def main():
     d = 2**(1/6)
-    Dx, Dy, Dz = 86.0, 86.0, 3
+    Dx, Dy, Dz = 87.0, 87.0, 3
     Dz_tip = (2**(1/2)) * d
     radius = 0
     units = 'lj'

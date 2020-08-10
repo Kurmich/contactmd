@@ -118,10 +118,14 @@ def main():
         new_filename = "../visfiles/filt_" + name
         filter_for_ovito(filename, new_filename)
     else:
-        name = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p0.4.out" %(M,N,T,r,cang)
-        filename = "../visfiles/" + name
-        new_filename = "../visfiles/filt_" + name
-        isolate_dist_changes(filename, new_filename)
+        Ts = [0.1, 0.2]
+        drs = [0.5, 0.75, 1, 1.25, 1.5]
+        for T in Ts:
+            for dr in drs:
+                name = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(M,N,T,r,cang, dr)
+                filename = "../visfiles/" + name
+                new_filename = "../visfiles/filt_" + name
+                isolate_dist_changes(filename, new_filename)
         
 
 

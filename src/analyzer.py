@@ -30,12 +30,12 @@ class SimulationSettings:
 
 class FileNames:
     
-    def __init__(self, M, N, T, r, cang, stiff, is_cone):
+    def __init__(self, M, N, T, r, dz, cang, stiff, is_cone):
         if is_cone:
-            self.make_conetip_names(M, N, T, r, cang, stiff)
+            self.make_conetip_names(M, N, T, r, dz, cang, stiff)
         else:
-            self.make_spheretip_names(M, N, T, r, stiff)
-    def make_conetip_names(self, M, N, T, r, cang, stiff):
+            self.make_spheretip_names(M, N, T, r, dz, stiff)
+    def make_conetip_names(self, M, N, T, r, dz, cang, stiff):
         vis_data_path = settings.vis_data_path
         out_data_path = settings.out_data_path
         name  = 'visualize_stiff_M%d_N%d_T%g_r%d_cang%d.out'    %(M, N, T, r, cang) if stiff else 'visualize_M%d_N%d_T%g_r%d_cang%d.out'   %(M, N, T, r, cang)
@@ -49,10 +49,10 @@ class FileNames:
         #changes = "changes_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang, delta_r, step)
         #breaks = "breaks_M%d_N%d_T%g_r%d_cang%d_p%g_stp%d.png" %(css.M, css.N, css.T, css.r, css.cang,  delta_r, step)
         #vis_changes = "visualizechanges_M%d_N%d_T%g_r%d_cang%d_p%g.out" %(css.M, css.N, css.T, css.r, css.cang, delta_r)
-    def make_spheretip_names(self, M, N, T, r, stiff):
+    def make_spheretip_names(self, M, N, T, r, dz, stiff):
         vis_data_path = settings.vis_data_path
         out_data_path = settings.out_data_path
-        name  = 'vis_sphere_stiff_M%d_N%d_T%g_r%d.out'    %(M, N, T, r) if stiff else 'vis_sphere_M%d_N%d_T%g_r%d.out'   %(M, N, T, r)
+        name  = 'vis_sphere_stiff_M%d_N%d_T%g_r%d_dz%d.out'    %(M, N, T, r, dz) if stiff else 'vis_sphere_M%d_N%d_T%g_r%d_dz%d.out'   %(M, N, T, r, dz)
         self.vis   = vis_data_path + name
         name  = 'pairids_stiff_M%d_N%d_T%g_r%d.out'       %(M, N, T, r) if stiff else 'pairids_M%d_N%d_T%g_r%d.out'      %(M, N, T, r)
         self.inter = vis_data_path + name
@@ -673,6 +673,7 @@ def visualize_cum_lj_bond_stats(css, delta_r):
     comp_ext_frac, ext_comp_frac = [], []
     data_count = t_final-t_init
     print("data count", data_count)
+    print("filename: ", filenames.vis)
     data = np.zeros( (data_count, 8) )
     ds = []
     filename             = filenames.vis
@@ -687,9 +688,9 @@ def visualize_cum_lj_bond_stats(css, delta_r):
     bounds_ref                 = first_bounds[0]
     print("Reference atomic forces computed.")
     for t_start in range(t_init, t_final, t_step):
-        t_end                      = t_start + t_step - 1
+        t_end = t_start + t_step - 1
         all_res, all_bounds, times = get_interactions(filename, t_start, t_end, types, interacting = False)
-        pair_counts                = construct_neighbors(all_res, all_bounds, atype, rc)
+        pair_counts = construct_neighbors(all_res, all_bounds, atype, rc)
         print("Neighbors are constructed.", flush = True)
         changes_comp, changes_ext, breaks, formations, comp_then_ext, ext_then_comp = get_cum_ljbond_stats(all_res, all_bounds, atom_forces_ref, bounds_ref, atype, delta_r)
         for i in range(len(changes_comp)):
@@ -843,28 +844,28 @@ def vis_hardness(css):
     print("Visualizing hardness")
     #cang = 45
     types = [tip_type]
-    atype = glass
     #rc = 1.5
     vz = css.vz
     d0 = 0 #2.2 
     t_init, t_final = css.t_init, css.t_final
     t_step = css.t_step
     filename = filenames.vis
-    filename = "../visfiles/filt_vis_sphere_stiff_M2000_N256_T0.1_r25.out"
-    filename = "../visfiles/vis_sphere_kovac_M2000_N256_T0.2_r25.out"
+    filename = "../visfiles/OLD/filt_vis_sphere_stiff_M2000_N256_T0.1_r25.out"
+    #filename = "../visfiles/OLD/vis_sphere_kovac_M2000_N256_T0.1_r25.out"
     all_res, bounds, times = get_interactions(filename, t_init, t_final, types, interacting = True)
     plot_stresszz_d(all_res, times, vz, tip_type)
     
     
 def vis_layers(css):
     print("Visualizing layer density")
-    atype = tip_type
+    atype = glass
     types = [atype]
-    filename = filenames.vis
+    filename = "../visfiles/OLD/vis_sphere_stiff_M2000_N256_T0.0001_r0.out" #filenames.vis
+    filename = "../visfiles/OLD/filt_vis_sphere_stiff_M2000_N256_T0.1_r25.out"
     all_res, bounds, times = get_interactions(filename, css.t_init, css.t_final, types, interacting = False)
     atom_forces = all_res[0][atype]    
     #plot_layer_density(atom_forces)
-    autocorrfz(atom_forces, bounds[0], -50, +50)
+    autocorrfz(atom_forces, bounds[0], -27,15)
     
 
         
@@ -906,6 +907,7 @@ def main():
     parser = argparse.ArgumentParser(description = "Contact analysis")
     parser.add_argument('--M',       type=int,   default = 2000,   help = '# of chains in a melt')
     parser.add_argument('--N',       type=int,   default = 256,    help = '# of monomers per chain')
+    parser.add_argument('--dz',      type=int,   default = 5, help = 'Indentation depth')
     parser.add_argument('--T',       type=float, default = 0.0001, help = 'Temperature of the system')
     parser.add_argument('--vz',      type=float, default = 0.0001, help = 'Indenting tip velocity')
     parser.add_argument('--dt',      type=float, default = 0.01,   help = 'Integration time step of the simluation')
@@ -920,18 +922,19 @@ def main():
     args = parser.parse_args()
     #Temp = 0.0001
     is_stiff = True
-    args.stiff = is_stiff
-    #args.r    = 25
+    #args.stiff = is_stiff
+    #args.r    = 0 #25
     #args.conetip = True
     #args.T = 0.1
     #args.cang = 0
     #args.vz  =  0.0001
     global css, filenames
-    print(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
-    css = ConesimSettings(args.M, args.N, args.T, args.r, args.cang, args.vz, args.dt)
-    css.set_analysisvals(2, 4, 1)
-    filenames = FileNames(args.M, args.N, args.T, args.r, args.cang, args.stiff, args.conetip)
-    print(args.stiff, args.M)
+    print("Number of chains: %d Monomers per chain: %d Temperature: %g Tip Radius: %g" %(args.M, args.N, args.T, args.r))
+    print(args.cang, args.stiff, args.conetip)
+    css = ConesimSettings(args.M, args.N, args.T, args.r,  args.cang, args.vz, args.dt)
+    css.set_analysisvals(2, 200, 5)
+    filenames = FileNames(args.M, args.N, args.T, args.r, args.dz, args.cang, args.stiff, args.conetip)
+    print(filenames.vis, flush = True )
     #plot_nforce_vs_cont_area()
     #substrate_type = 1
     #tip_type = 2
@@ -949,7 +952,7 @@ def main():
         vis_hardness(css)
     if args.bondstats:
         visualize_cum_lj_bond_stats(css, args.delta_r)
-        visualize_lj_bond_stats(css, args.delta_r)
+        #visualize_lj_bond_stats(css, args.delta_r)
     if args.stretches:
         visualize_stretches(css)
     return

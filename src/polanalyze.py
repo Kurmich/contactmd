@@ -43,15 +43,15 @@ skeywords = [["Masses", "atom types"],
 
 class PolymerMelt:
     def __init__(self, polymers, headers, sections):
-        self.polymers = polymers
-        self.headers = headers
-        self.sections = sections
+        self.polymers  = polymers
+        self.headers   = headers
+        self.sections  = sections
         self.Lx = headers["xlo xhi"][1] - headers["xlo xhi"][0]
         self.Ly = headers["ylo yhi"][1] - headers["ylo yhi"][0]
         self.Lz = headers["zlo zhi"][1] - headers["zlo zhi"][0]
-        self.chain_count = len(polymers)
+        self.chain_count   = len(polymers)
         self.monomer_count = len(polymers[0].monomers)
-        self.sorted_ids = False
+        self.sorted_ids    = False
 
     def plot_polymer(self, pol_id):
         polymer = self.polymers[pol_id]
@@ -98,26 +98,29 @@ class PolymerMelt:
         angle_type      = 1 #THIS IS ADHOC ONLY FOR SIGNLE ANGLE TYPE
         for polymer in self.polymers:
             for mi in range(len(polymer.monomers)):
-                mon = polymer.monomers[mi]
-                pol_id = polymer.pol_id if mon.mol_id == -1 else mon.mol_id
-                atom_line = "%d %d %d %g %g %g %d %d %d\n" % (mon.id, pol_id, mon.type, mon.x, mon.y, mon.z, 0, 0, 0)
-                vel_line = "%d %g %g %g\n" %(mon.id, mon.vx, mon.vy, mon.vz)
+                mon       = polymer.monomers[mi]
+                pol_id    = polymer.pol_id if mon.mol_id == -1 else mon.mol_id
+                atom_line = "%d %d %d %g %g %g %d %d %d\n" %(mon.id, pol_id, mon.type, mon.x, mon.y, mon.z, 0, 0, 0)
+                vel_line  = "%d %g %g %g\n" %(mon.id, mon.vx, mon.vy, mon.vz)
                 atom_lines.append(atom_line)
                 vel_lines.append(vel_line)
                 if mi < len(polymer.monomers)-1:
-                    next_mon = polymer.monomers[mi+1]
-                    bond_line = "%d %d %d %d\n" %(bond_id, bond_type, mon.id, next_mon.id)
+                    next_mon      = polymer.monomers[mi+1]
+                    bond_line     = "%d %d %d %d\n" %(bond_id, bond_type, mon.id, next_mon.id)
+                    bond_id       += 1
                     bond_lines.append(bond_line)
-                    bond_id += 1
                 if mi < len(polymer.monomers)-2:
-                    next_mon = polymer.monomers[mi+1]
+                    next_mon      = polymer.monomers[mi+1]
                     next_next_mon = polymer.monomers[mi+2]
-                    angle_line = "%d %d %d %d %d\n" %(angle_id, angle_type, mon.id, next_mon.id, next_next_mon.id)
+                    angle_line    = "%d %d %d %d %d\n" %(angle_id, angle_type, mon.id, next_mon.id, next_next_mon.id)
+                    angle_id      += 1
                     angle_lines.append(angle_line)
-                    angle_id += 1
+                    
         #add angle headers
-        self.headers["angles"]       = angle_id - 1
+        self.headers["angles"]       = angle_id - 1 #number of angles
         self.headers["angle types"]  = angle_type
+        self.headers["bonds"]        = bond_id - 1  #number of bonds
+        
         
         self.sections["Atoms"]       = atom_lines
         self.sections["Velocities"]  = vel_lines
@@ -165,7 +168,7 @@ class PolymerMelt:
         dzs = [0] 
         for i in range(self.monomer_count-1):
             mon_next = pmr.monomers[i+1]
-            mon_cur = pmr.monomers[i]
+            mon_cur  = pmr.monomers[i]
             #add pointswise distpacements between monomer i and monomer i+1
             dxs.append( self.get_displ_pbr(mon_next.x, mon_cur.x, self.Lx) )
             dys.append( self.get_displ_pbr(mon_next.y, mon_cur.y, self.Ly) )
@@ -236,10 +239,10 @@ class PolymerMelt:
                 dx            = self.get_displ_pbr(mon_next.x, mon_cur.x, self.Lx)
                 dy            = self.get_displ_pbr(mon_next.y, mon_cur.y, self.Ly)
                 dz            = self.get_displ_pbr(mon_next.z, mon_cur.z, self.Lz)
-                bond_len_sq     = (dx**2 + dy**2 + dz**2)
-                cos_sq_x         += (dx**2) / bond_len_sq
-                cos_sq_y         += (dy**2) / bond_len_sq
-                cos_sq_z         += (dz**2) / bond_len_sq
+                bond_len_sq   = (dx**2 + dy**2 + dz**2)
+                cos_sq_x      += (dx**2) / bond_len_sq
+                cos_sq_y      += (dy**2) / bond_len_sq
+                cos_sq_z      += (dz**2) / bond_len_sq
             count   += (len(polymer.monomers)-1)
         cos_sq_x  /= count
         cos_sq_y  /= count
@@ -248,6 +251,23 @@ class PolymerMelt:
         fy   = (3*cos_sq_y - 1)/2
         fz   = (3*cos_sq_z - 1)/2
         print("f_x: %g f_y: %g f_z: %g" %(fx, fy, fz))
+        
+    def partition_chains(self, chain_len):
+        assert chain_len < self.monomer_count and self.monomer_count % chain_len == 0
+        branch_count = self.monomer_count / chain_len
+        new_polymers = []
+        new_pol_id = 1
+        for polymer in self.polymers:
+            for mi in range(0, len(polymer.monomers), chain_len):
+                oligomer             = Polymer(new_pol_id)
+                oligomer.monomers    = polymer.monomers[mi:mi+chain_len]
+                new_pol_id           += 1
+                new_polymers.append(oligomer)
+        new_monomer_count = len(new_polymers[0].monomers)
+        assert len(new_polymers) == self.chain_count * branch_count
+        assert new_monomer_count == chain_len
+        
+        return PolymerMelt(new_polymers, self.headers, self.sections)
                 
 
 class Polymer:
@@ -491,15 +511,29 @@ def check_isotropy(M, N, T):
     graph, headers, sections = get_graph(filename, M, N)
     polymers = graph.group_polymers()
     pol_melt = PolymerMelt(polymers, headers, sections)
-    pol_melt.mountain_mol_ids()
+    #pol_melt.mountain_mol_ids()
     pol_melt.bond_isotropy()
+    
+def divide_chains(M, N, T, chain_len):
+    filename = "../lammpsinput/data_quenched_stiff_M%d_N%d_T%g_nve_smooth" %(M,N,T)
+    #filename = "../lammpsinput/data_eq_stiff_M%d_N%d" %(M,N)
+    graph, headers, sections = get_graph(filename, M, N)
+    polymers = graph.group_polymers()
+    pol_melt = PolymerMelt(polymers, headers, sections)
+    new_pol_melt = pol_melt.partition_chains(chain_len)
+    chain_count = int(M*(N/chain_len))
+    new_pol_melt.write_sections()
+    new_pol_melt.write_lammps_file("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g_smooth.data" %(chain_count,chain_len,T))
+    
+    
 
 def main():
     xs, ys = read_goal("goal.txt")
     M = 2000
     N = 256
-    T = 0.2
-    check_isotropy(M, N, T)
+    T = 0.0001
+    #check_isotropy(M, N, T)
+    divide_chains(M, N, T, 8)
     #check_equilibration(M, N)
     #vis_layers(M, N, T)
     #add_angles(M, N)

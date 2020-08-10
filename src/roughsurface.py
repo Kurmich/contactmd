@@ -69,9 +69,10 @@ class RoughSurface:
     
     def filtering_algorithm_surface(self):
         gauss_mat = self.get_rand_matrix(distribution = 'gaussian')
-        H =  np.fft.fft2(gauss_mat) * np.sqrt(self.psd)
+        #phases = self.get_rand_matrix()
+        H =  np.fft.fft2(gauss_mat) * np.sqrt(self.psd) #* np.exp(phases*1j)
         self.heights =  np.fft.ifft2(H) *  (self.Nx * self.Ny)**(1/2) # (self.Nx**2 + self.Ny**2)**(1/4) 
-        #self.heights *= (0.1/ self.rms_slope)
+        self.heights *= (0.1/ self.rms_slope)*self.Lx
         print("std: ", np.std(self.heights) )
     
     def random_phase_surface(self):
@@ -257,7 +258,7 @@ def main():
     print(spectrum.get_info() )
     d = 2**(1/6)
     dx, dy = d/2, d/2
-    args.Lx, args.Ly = 700, 700
+    #args.Lx, args.Ly = 10, 10
     
     args.Nx, args.Ny = int(args.Lx/dx), int(args.Ly/dy)
     N_vec = (args.Nx, args.Ny)

@@ -135,6 +135,7 @@ def plot_stresszz_d(all_res, times, v, type):
     t0 = times[0]
     times = [ t - t0 for t in times]
     print(len(all_res), len(times))
+    first_contact = True
     for i in range(len(all_res)):
         t = times[i]
         print("New timestep: %d" %t)
@@ -145,7 +146,13 @@ def plot_stresszz_d(all_res, times, v, type):
             fx, fy, fz = get_total_forces(interacting_af)
             area = count * math.pi * (1.12/2)**2
             hc = get_contact_depth(interacting_af)
+            if first_contact:
+                print("First contact time: ", t)
+                first_contact = False
         else:
+            if first_contact:
+                print("First contact time: ", t)
+                first_contact = False
             fx, fy, fz = get_total_forces(interacting_af)
             hull = ConvexHull(points)
             #plt.plot(points[hull.vertices,0], points[hull.vertices,1], 'r--', lw=2)
@@ -177,7 +184,7 @@ def plot_stresszz_d(all_res, times, v, type):
     ax[1][1].set_ylabel("$\sigma_{zz} a^3/u_0$", rotation = 90)
     for i in range(2):
         for j in range(2):
-            if True:
+            if False:
                  ax[i][j].set_xlabel("$t/t_{LJ}$")
                  ax[i][j].set_xscale('log')
             else:

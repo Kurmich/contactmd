@@ -211,16 +211,37 @@ def get_avg_points_and_vals(atom_forces, bounds, rc, vis = False):
         xs.append(x_sum/N)
         ys.append(y_sum/N)
         values.append(val_sum)
-        print(val_sum)
+        #print(val_sum)
     if vis:
-        plt.hist(values, bins = 50)
+        std = np.std(values)
+        fz_sq = np.mean(np.square((values)))
+        plt.hist(values, bins=50, alpha=0.5, label = r'$\sigma = %3.1f, <f_z^2> = %4.1f$' %(std, fz_sq),
+         histtype='step', linewidth=2,
+         edgecolor='darkviolet')
+        plt.xlabel(r'$f_z(u_0/a)$')
+        plt.ylabel(r'$Count$')
+        plt.legend()
         plt.show()
     return np.array( [ xs, ys ] ).T, np.array(values)
-            
+
+def plot_hist(values):
+    values = values.flatten()
+    std = np.std(values)
+    fz_sq = np.mean(np.square((values)))
+    plt.hist(values, bins=50, alpha=0.5, label = r'$\sigma = %3.1f, <f_z^2> = %4.1f$' %(std, fz_sq),
+     histtype='step', linewidth=2,
+     edgecolor='darkviolet')
+    plt.xlabel(r'$f_z(u_0/a)$')
+    plt.ylabel(r'$Count$')
+    plt.legend()
+    plt.show()   
 def autocorrfz(atom_forces, bounds, zlo, zhi):
-    plt.close()  
+    plt.close()
+    print(bounds.get_bounds_text())
     print(len(atom_forces))
     atom_forces         = filter_by_height(atom_forces, zlo, zhi)
+    density = len(atom_forces) / ((zhi-zlo)*(bounds.xhi-bounds.xlo)*(bounds.yhi-bounds.ylo))
+    print("Density: %g" %density)
     print(len(atom_forces))
     values              = [ af.fz for af in atom_forces ]
     fz_av               = np.mean(values)
@@ -229,7 +250,7 @@ def autocorrfz(atom_forces, bounds, zlo, zhi):
     
     points              = np.array( [ [af.x for af in atom_forces], [af.y for af in atom_forces] ] ).T
     print( points.shape )
-    points, values      = get_avg_points_and_vals(atom_forces, bounds, 1.5, vis=True)
+    points, values      = get_avg_points_and_vals(atom_forces, bounds, 1, vis=False)
     fz_av               = np.mean(values)
     fz_sum              = np.sum(values)
     print("avg sum:" ,fz_av, fz_sum, np.std(values)  )
@@ -238,7 +259,9 @@ def autocorrfz(atom_forces, bounds, zlo, zhi):
     xs                  = np.linspace(bounds.xlo - 0.5, bounds.xhi + 0.5, nx)
     ys                  = np.linspace(bounds.ylo - 0.5, bounds.yhi + 0.5, ny)
     grid_x, grid_y      = np.meshgrid(xs, ys)
+    #grid_fz             = griddata(points, values, (grid_x, grid_y), method='nearest')
     grid_fz             = griddata(points, values, (grid_x, grid_y), method='linear', fill_value = fz_av)
+    plot_hist(grid_fz)
     #print()
     #print(np.isnan(grid_fz).sum(), np.isnan(values).sum())
     force_fft           = np.fft.fft2(grid_fz)
@@ -247,7 +270,7 @@ def autocorrfz(atom_forces, bounds, zlo, zhi):
     #print(pow_spec.shape, grid_fz.shape)
     pow_spec = np.fft.ifftshift(smooth_psd(np.fft.fftshift(pow_spec).real, visualize = False))
     force_autocorr      = np.fft.ifft2(pow_spec)
-    print( "force_autocorr[0,0]: ", force_autocorr[0,0] )
+    print( "force_autocorr[0,0]: ", force_autocorr[0, 0] )
     print("sum of squares of signal: %g" %np.mean(np.square(grid_fz)))
     smooth_psd(np.fft.fftshift(force_autocorr).real, visualize = False)
     #pow_spec = smooth_psd(np.fft.fftshift(pow_spec).real)
@@ -260,7 +283,6 @@ def autocorrfz(atom_forces, bounds, zlo, zhi):
     #plt.imshow(np.abs(np.fft.ifftshift(force_autocorr.real)).T, extent=(bounds.xlo - 0.5, bounds.xhi + 0.5, bounds.ylo - 0.5, bounds.yhi + 0.5))
     #plt.plot(points[:,0], points[:,1], 'k.', ms=1)
     #plt.colorbar()
-    #plt.show()
 
 
 
@@ -312,6 +334,10 @@ def smooth_psd(psd, visualize = False):
         plt.plot(rs[:-1], vals, 'bo')
         #plt.yscale('log')
         #plt.hist(vals, bins = rs)
+        plt.ylabel('Autocorr')
+        plt.xlabel(r'r/a')
+        #plt.ylabel('PSD')
+        #plt.xlabel(r'r/a')
         plt.show()
     psd = gaussian_filter(psd, sigma=1)
     return psd

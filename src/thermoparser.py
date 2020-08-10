@@ -283,7 +283,7 @@ def bond_change_stats(filename):
             ffrac.append(forms / pair_count)
             comp_ext_frac.append(ce / pair_count)
             ext_comp_frac.append(ec / pair_count)
-    return ds, comp_frac, ext_frac
+    return ds, comp_frac, ext_frac, bfrac, ffrac 
     plot_changes(ds, comp_frac, ext_frac, contactd, delta_r)
     
 
@@ -325,32 +325,49 @@ def get_scale_shift(l1, l2):
     shift  = m2 - scale * m1
     return scale, shift
 
+
+def plot_changes(M, N, R, Ts, drs):
+    for T in Ts:
+        for dr in drs:
+            bond_filename = "../outputfiles/OLD/cum_stats_stiff_M%d_N%d_T%g_r%d_p%g.out" %(M, N, T, R, dr)
+            ds, comp_frac, ext_frac, broken, formed = bond_change_stats(bond_filename)
+            c_frac = [comp_frac[i] + ext_frac[i] for i in range(len(comp_frac))]
+            ds = [d - ds[0] for d in ds]
+            plt.plot(ds, c_frac, label = "$T = %g, \Delta R = %g$" %(T, dr))
+    plt.xlabel("d/a")
+    plt.ylabel("Fraction")
+    plt.legend()
+    plt.show()
+
+def plot_broken_formed(M, N, R, T, dr):
+    bond_filename = "../outputfiles/OLD/cum_stats_stiff_M%d_N%d_T%g_r%d_p%g.out" %(M, N, T, R, dr)
+    ds, comp_frac, ext_frac, broken, formed = bond_change_stats(bond_filename)
+    broken_or_formed = [broken[i] + formed[i] for i in range(len(formed))]
+    ds = [d - ds[0] for d in ds]
+    plt.plot(ds, broken_or_formed, label = "$T = %g$" %(T))
+    plt.xlabel("d/a")
+    plt.ylabel("Fraction")
+    plt.legend()
+    plt.show()
+
 def main():
     M, N = 2000, 256
     T = 0.1
-    Ts = [0.1]
-    drs = [0.3, 0.6, 0.9, 1.2]
+    Ts = [0.0001]
+    drs = [0.5, 0.75, 1, 1.25, 1.5]
     R, cang = 25, 45
-    for T in Ts:
+    '''for T in Ts:
         filename = "../outputfiles/deform_M%d_N%d_T%g.txt" %(M, N, T)
         compression_stats(filename, T)
-    plt.show()
+    plt.show()'''
     '''filename = "../outputfiles/autocorr_stiff_M%d_N%d_T%g.txt" %(M, N, T)
     autocorr_stats(filename)'''
     '''heat_filename = "../outputfiles/spheretip_stiff_M%d_N%d_T%g_sphR%d_nve.txt" %(M, N, T, R)
     bond_filename = "../outputfiles/stats_stiff_M%d_N%d_T%g_r%d_p%g.out" %(M, N, T, R, 0.3)
     impose_heat_bonds(heat_filename, bond_filename)'''
-    '''for T in Ts:
-        for dr in drs:
-            bond_filename = "../outputfiles/stats_stiff_M%d_N%d_T%g_r%d_p%g.out" %(M, N, T, R, dr)
-            ds, comp_frac, ext_frac = bond_change_stats(bond_filename)
-            c_frac = [comp_frac[i] + ext_frac[i] for i in range(len(comp_frac))]
-            ds = [d - ds[0] for d in ds]
-            plt.plot(ds, c_frac, label = "$T = %g, \Delta R = %g$" %(T, dr))
-    plt.xlabel("d")
-    plt.ylabel("Fraction")
-    plt.legend()
-    plt.show()'''
+    #plot_changes(M, N, R, Ts, drs)
+    plot_broken_formed(M, N, R, 0.2, 0.5)
+    return
     #heat_stats(heat_filename, 0.8214 * 0.0000045 * 2, 1)
     #bond_change_stats(bond_filename)
     #plt.show()

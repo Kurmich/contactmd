@@ -506,10 +506,10 @@ skeywords = [["Masses", "atom types"],
 
 
 def add_sphere_tip(M, N, T, r, Dx, sep_z):
-    sep_z = 2**(1/6) + 0.5
+    sep_z = 2**(1/6) * 2
     d = data("../lammpsinput/clean_quenched_stiff_M%d_N%d_T%g_smooth.data" %(M, N, T))
-    #d2 = data("../lammpsinput/flattip_Dx%d.data" %(Dx))
-    d2 = data("../lammpsinput/sphere_r%d_Dx%d.dat" %(r, Dx))
+    d2 = data("../lammpsinput/flattip_Dx%d.data" %(Dx))
+    #d2 = data("../lammpsinput/sphere_r%d_Dx%d.dat" %(r, Dx))
     d.append(d2, sep_z)
     d.write("../lammpsinput/spheretip_data_quenched_stiff_M%d_N%d_T%g_sphR%d_smooth" %(M, N, T, r))
     print("sepz: %g" %sep_z)
@@ -533,12 +533,12 @@ def remove_atoms(filename, needed_types):
     new_d.write(new_filename)
 
 def main():
-    M = 2000
-    N = 256
-    T = 0.2
-    r = 25#30
+    M = 64000 #2000
+    N = 8 #256
+    T = 0.0001
+    r = 0#25#30
     cone_ang = 0#30
-    Dx = 91#85
+    Dx = 87#91#85
     Dy = Dx
     sep_z = 2**(1/6) + 0.5
     #remove_atoms("../lammpsinput/quenched_rough_stiff_M2000_N256_T0.15_smooth", [1])
