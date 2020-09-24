@@ -3,7 +3,8 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from atom import Atom, GFMD, AtomicForces
-
+from data import data
+import argparse
 
 #class Substrate:
 
@@ -19,6 +20,7 @@ class Crystal:
         self.atom_planes = []
         self.init_borders()
         self.num_atoms = 0
+        self.name = "plane"
 
     def print_lattice_params(self):
         print("Nearest neighbor distance: %f, atom type: %d atom mass: %d exposed surface: %s" %(self.d, self.type, self.mass, self.exposed_surface))
@@ -102,6 +104,7 @@ class Crystal:
 
     def bend_to_sphere(self, radius, concave_up = True):
         #bend the atoms around center
+        self.name = "sphere"
         n = 0
         z_cut = 30 * self.d
         zcm = self.z_max + radius
@@ -138,6 +141,7 @@ class Crystal:
         return self
 
     def bend_to_conesphere(self, radius, angle):
+        self.name = "cone"
         n = 0
         h = 25
         self.num_atoms = 0
@@ -173,15 +177,6 @@ class Crystal:
         self.atom_planes = new_atom_planes
         return self
 
-        
-
-    def dump_contents(self, filename):
-        """Append all coordinates of the atoms to a file"""
-        with open(filename, 'a') as f:
-            for atom_plane in self.atom_planes:
-                for atom in atom_plane:
-                    f.write(atom.get_contents())
-
     def visualize(self):
         """visualize lattice in a 3d plot"""
         fig = plt.figure()
@@ -193,11 +188,34 @@ class Crystal:
                 y.append(atom.y)
                 z.append(atom.z)
         ax.scatter(x, y, z)
-        ax.set_xlabel('X Label')
-        ax.set_ylabel('Y Label')
-        ax.set_zlabel('Z Label')
+        ax.set_xlabel(r'x(a)')
+        ax.set_ylabel(r'y(a)')
+        ax.set_zlabel(r'z(a)')
         plt.show()
-
+    def write_lammps_file(self):
+        d          = data()
+        d.title    = "Crsytal with exposed surface: %s and interactomic distance: %g" %(self.exposed_surface, self.d)
+        d.sections = {}
+        d.headers  = {}
+        d.headers["xlo xhi"] = (self.x_min , self.x_max)
+        d.headers["ylo yhi"] = (self.y_min , self.y_max)
+        d.headers["zlo zhi"] = (self.z_min , self.z_max)
+        d.headers["atoms"]   = self.num_atoms
+        unique_types = set()
+        atom_lines      = []
+        velocity_lines  = []
+        for atom_plane in self.atom_planes:
+            for atom in atom_plane:
+                atom_lines.append( atom.get_contents() + "\n" )
+                velocity_lines.append(atom.get_velocities() + "\n")
+                unique_types.add(atom.type)
+        d.headers["atom types"]   = len(unique_types)
+        d.sections["Atoms"]       = atom_lines
+        d.sections["Velocities"]  = velocity_lines
+        Lx = int(self.x_max - self.x_min)
+        filename = "%s_Lx%d.data" %(self.name, Lx)
+        d.write(filename)
+        
 
 
 
@@ -248,21 +266,40 @@ class FCC(Crystal):
 
 
 def main():
-    d = 2**(1/6)
-    a = (2**(1/2)) * d
-    fcc = FCC(d,'001' ,1, 1)
+    parser = argparse.ArgumentParser(description = "Rough surface generation")
+    parser.add_argument('--d',    type=float,    default = 2**(1/6),    help = 'Interatomic distance.')
+    parser.add_argument('--surface', type=str,   default = '001',    help = 'Exposed surface of a crystal.')
+    parser.add_argument('--atom_style', type=str, default = 'atomic',    help = 'Style: gfmd, bond, atomic')
+    parser.add_argument('--atype',  type=int, default = 2**(1/6),    help = 'Atom type')
+    parser.add_argument('--mass',  type=float, default = 1.0,    help = 'Atom mass')
+    parser.add_argument('--r',  type=float, default = 25,      help = 'Radius of a sphere.')
+    parser.add_argument('--Lx', type=float, default = 100,     help = 'Length in x axis.')
+    parser.add_argument('--Ly', type=float, default = 100,     help = 'Length in y axis.')
+    parser.add_argument('--Lz', type=float, default = 1,       help = 'Length in z axis.')
+    parser.add_argument('--cang',    type=float, default = 45,     help = 'Angle the cone surface makes with the horizontal plane')
+    parser.add_argument('--sphere', action = 'store_true', default = False, help = 'True if analysis of hardness is LJ bond lengths is needed')
+    parser.add_argument('--cone', action = 'store_true', default = False, help = 'True if analysis of end-end polymer lengths is LJ bond lengths is needed')
+    args = parser.parse_args()
+    
+    #set parameters for an fcc crystal
+    args.d /= 2
+    fcc     = FCC(args.d, args.surface, args.atype, args.mass, args.atom_style)
     fcc.print_lattice_params()
-    Dx, Dy, Dz = 5, 5, 5
-    Nx, Ny, Nz = int(math.floor(Dx/a)), int(math.floor(Dy/a)), int(math.floor(Dz/a))
+    
+    #set dimentions
+    Nx, Ny, Nz = int(math.floor(args.Lx/args.d)), int(math.floor(args.Ly/args.d)), int(math.ceil(args.Lz/args.d))
     fcc.create_atoms(Nx, Ny, Nz)
-    #fcc.dump_contents("fcc_contents.txt")
-    fcc.visualize()
     fcc.shift_cm_to_origin()
-    fcc.visualize()
+    
+    if args.sphere:
+        fcc.bend_to_sphere(args.r)
+    elif args.cone:
+        fcc.bend_to_conesphere(args.r, args.cang)
+        pass
+        
     fcc.print_lattice_borders()
-    fcc.bend_to_sphere(20)
     fcc.visualize()
-    fcc.print_lattice_borders()
+    fcc.write_lammps_file()
 
 if __name__ == "__main__":
     main()

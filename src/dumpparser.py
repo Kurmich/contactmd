@@ -116,6 +116,13 @@ def get_interactions(filename, t_start, t_end, types, interacting = False, sortk
                 atr_line = line[line.index('S')+1:]
                 atr_words = atr_line.split(' ')
                 #print("Atom coordinate lines are coming")
+    if len(res) != 0:
+        for type, atom_forces in res.items():
+            l = sorted(atom_forces, key = sortkey)
+            res[type] = l
+        all_res.append(res)
+    elif len(times) > 0:
+        times.pop()
     return all_res, all_bounds, times
 
 

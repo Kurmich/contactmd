@@ -851,7 +851,7 @@ def vis_hardness(css):
     t_step = css.t_step
     filename = filenames.vis
     filename = "../visfiles/OLD/filt_vis_sphere_stiff_M2000_N256_T0.1_r25.out"
-    #filename = "../visfiles/OLD/vis_sphere_kovac_M2000_N256_T0.1_r25.out"
+    filename = "../visfiles/vis_sphere_kovac_M2000_N256_T0.2_r25_Fz100.out"
     all_res, bounds, times = get_interactions(filename, t_init, t_final, types, interacting = True)
     plot_stresszz_d(all_res, times, vz, tip_type)
     
@@ -865,7 +865,7 @@ def vis_layers(css):
     all_res, bounds, times = get_interactions(filename, css.t_init, css.t_final, types, interacting = False)
     atom_forces = all_res[0][atype]    
     #plot_layer_density(atom_forces)
-    autocorrfz(atom_forces, bounds[0], -27,15)
+    autocorrfz(atom_forces, bounds[0], -27, 15)
     
 
         
@@ -927,12 +927,12 @@ def main():
     #args.conetip = True
     #args.T = 0.1
     #args.cang = 0
-    #args.vz  =  0.0001
+    args.vz  = 1 #0.0001
     global css, filenames
     print("Number of chains: %d Monomers per chain: %d Temperature: %g Tip Radius: %g" %(args.M, args.N, args.T, args.r))
     print(args.cang, args.stiff, args.conetip)
     css = ConesimSettings(args.M, args.N, args.T, args.r,  args.cang, args.vz)
-    css.set_analysisvals(2, 200, 5)
+    css.set_analysisvals(1, 1400, 1)
     filenames = FileNames(args.M, args.N, args.T, args.r, args.dz, args.cang, args.stiff, args.conetip)
     print(filenames.vis, flush = True )
     #plot_nforce_vs_cont_area()
@@ -945,7 +945,7 @@ def main():
     #visualize_fluctuations(css, filenames, del_z)
     #delta_r = 0.5
     #visualize_cum_lj_bond_stats(css, delta_r)
-    #vis_hardness(css)
+    vis_hardness(css)
     #vis_layers(css)
     #return
     if args.hardness:

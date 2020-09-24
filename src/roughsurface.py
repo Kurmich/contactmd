@@ -237,6 +237,13 @@ class RoughSurface:
         d.write(filename)
 
 
+
+def coords2surface(filename):
+    with open(filename, 'r') as f:
+        for line in file:
+            line = line.strip()
+            words = line.split(' ')
+
 def main():
     parser = argparse.ArgumentParser(description = "Rough surface generation")
     parser.add_argument('--qs', type=float, default = 11.2,    help = 'Longest wave vector  (shortest wavelength).')

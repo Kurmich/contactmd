@@ -124,17 +124,16 @@ def get_contact_depth(interacting_afs):
     return zhi - zlo
 
 
-
-def plot_stresszz_d(all_res, times, v, type):
-    dt = settings.dt
-    areas = []
-    ds  = []
+def get_indentation_params(all_res, times, v, type):
+    dt         = settings.dt
+    areas      = []
+    ts         = []
     stresses_z = []
-    fzs = []
-    num_intrs = []
-    t0 = times[0]
+    fzs        = []
+    num_intrs  = []
+    t0         = times[0]
     times = [ t - t0 for t in times]
-    print(len(all_res), len(times))
+    assert len(all_res) == len(times),"%d %d" %(len(all_res), len(times))
     first_contact = True
     for i in range(len(all_res)):
         t = times[i]
@@ -169,26 +168,46 @@ def plot_stresszz_d(all_res, times, v, type):
         areas.append(area)
         fzs.append(fz)
         num_intrs.append(count)
-        ds.append(d)
+        ts.append(t)
         stresses_z.append(stress_zz)
         print("Displacement d: %g Contact Depth: %g Num of particles: %d Total Fz: %g Area: %g StressZ: %g " %(d, hc, count, fz, area, stress_zz))
+    return ts, num_intrs, areas, fzs, stresses_z
+
+def plot_stresszz_d(all_res, times, v, type):
+    dt         = settings.dt
+    ts, num_intrs, areas, fzs, stresses_z = get_indentation_params(all_res, times, v, type)
+    ds = [v * t * dt for t in ts]
     lj_times = [ t*dt for t in times ]
     fig, ax = plt.subplots(2, 2)
     ax[0][0].plot(ds, num_intrs, 'g')
     ax[0][0].set_ylabel("Atoms in contact", rotation = 90)
     ax[0][1].plot(ds, areas, 'r')
-    ax[0][1].set_ylabel("$A/a^2$", rotation = 90)
+    ax[0][1].set_ylabel("$A(a^2)$", rotation = 90)
     ax[1][0].plot(ds, fzs, 'k')
-    ax[1][0].set_ylabel("$F_z a/u_0$", rotation = 90)
+    ax[1][0].set_ylabel("$F_z(u_0/a)$", rotation = 90)
     ax[1][1].plot(ds, stresses_z, 'b')
-    ax[1][1].set_ylabel("$\sigma_{zz} a^3/u_0$", rotation = 90)
+    ax[1][1].set_ylabel("$\sigma_{zz}(u_0/a^3)$", rotation = 90)
     for i in range(2):
         for j in range(2):
-            if False:
-                 ax[i][j].set_xlabel("$t/t_{LJ}$")
-                 ax[i][j].set_xscale('log')
+            if True:
+                 ax[i][j].set_xlabel(r'$t(t_{LJ})$')
+                 #ax[i][j].set_xscale('log')
             else:
                 ax[i][j].set_xlabel("$d/a$")
            
     fig.suptitle("Indentation stats")
     plt.show()
+    fig2, ax2 = plt.subplots(1, 1)
+    tshift = 10**7 + 2* 10**5
+    idx = 0
+    for i in range(len(ts)):
+        if ts[i] - tshift >= 0:
+            idx = i
+            break
+    ds = ds[i:]
+    ds = [d-ds[0] for d in ds]
+    ax2.plot(ds, num_intrs[i:])
+    ax2.set_xscale('log')
+    plt.show()
+    
+    

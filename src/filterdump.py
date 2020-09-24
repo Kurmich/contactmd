@@ -108,12 +108,12 @@ def isolate_dist_changes(filename, new_filename):
 
 def main():
     M, N = 2000, 256
-    T = 0.2
+    T = 0.1
     r = 25
     cang = 45
     ovito = True
     if ovito:   
-        name = "vis_sphere_stiff_M%d_N%d_T%g_r%d.out" %(M,N,T,r)
+        name = "vis_sphere_stiff_M%d_N%d_T%g_r%d_dz%d.out" %(M,N,T,r, 3)
         filename = "../visfiles/" + name
         new_filename = "../visfiles/filt_" + name
         filter_for_ovito(filename, new_filename)

@@ -7,6 +7,7 @@ class Atom:
         self.y = y
         self.z = z
         self.mol_id = 1000000
+        self.set_velocity(0,0,0)
     def set_id(self, id):
         self.id = id
     def set_velocity(self, vx, vy, vz):
@@ -27,6 +28,8 @@ class Atom:
         self.z = new_z
     def get_contents(self):
         return "%d %d %d %f %f %f %d %d %d" %(self.id, self.mol_id, self.type, self.x, self.y, self.z, 0, 0, 0)
+    def get_velocities(self):
+        return "%d %f %f %f" %(self.id, self.vx, self.vy, self.vz)
 
 
 
